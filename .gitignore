@@ -1,0 +1,10 @@
+.env
+data/
+node_modules/
+build_x64/
+installer/stage/
+installer/Output/
+scripts/confluence.log
+scripts/confluence.pid
+streamdeck/tv.noxtaipan.confluence.sdPlugin/bin/
+streamdeck/tv.noxtaipan.confluence.sdPlugin/logs/

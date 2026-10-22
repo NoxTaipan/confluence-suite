@@ -1,0 +1,1085 @@
+#include "multi-output-widget.h"
+#include "push-widget.h"
+#include "output-config.h"
+#include "plugin-support.h"
+#include "i18n.h"
+#include <QScrollArea>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QGridLayout>
+#include <QPushButton>
+#include <QLabel>
+#include <QPixmap>
+#include <QMessageBox>
+#include <QDialog>
+#include <QTabWidget>
+#include <QMainWindow>
+#include <QFontDatabase>
+#include <QProcess>
+#include <QFile>
+#include <fstream>
+#include <chrono>
+#include <cmath>
+#include "obs.hpp"
+
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
+// Carpeta de Confluence (server Node). Orden: CONFLUENCE_DIR, HKCU\Software\Confluence\InstallDir,
+// HKLM (misma clave), %APPDATA%\Confluence\install-dir.txt, %PROGRAMDATA%\Confluence\install-dir.txt
+// y por ultimo %LOCALAPPDATA%\Confluence (donde instala el .exe por defecto).
+#ifdef _WIN32
+static bool ReadRegistryDir(HKEY root, std::string& out, LONG& rc)
+{
+    HKEY key = nullptr;
+    rc = RegOpenKeyExA(root, "Software\\Confluence", 0, KEY_QUERY_VALUE, &key);
+    if (rc != ERROR_SUCCESS) return false;
+    char val[MAX_PATH * 2] = {};
+    DWORD size = sizeof(val) - 1, type = 0;
+    rc = RegQueryValueExA(key, "InstallDir", nullptr, &type, (LPBYTE)val, &size);
+    RegCloseKey(key);
+    if (rc != ERROR_SUCCESS || type != REG_SZ || !val[0]) return false;
+    out = val;
+    return true;
+}
+
+static bool ReadDirFile(const char* envVar, std::string& out, DWORD& err)
+{
+    char base[MAX_PATH] = {};
+    DWORD n = GetEnvironmentVariableA(envVar, base, sizeof(base));
+    if (n == 0 || n >= sizeof(base)) { err = ERROR_ENVVAR_NOT_FOUND; return false; }
+    std::string path = std::string(base, n) + "\\Confluence\\install-dir.txt";
+    HANDLE h = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) { err = GetLastError(); return false; }
+    char buf[MAX_PATH * 2] = {};
+    DWORD read = 0;
+    ReadFile(h, buf, sizeof(buf) - 1, &read, nullptr);
+    CloseHandle(h);
+    std::string s(buf, read);
+    if (s.size() >= 3 && (unsigned char)s[0] == 0xEF && (unsigned char)s[1] == 0xBB && (unsigned char)s[2] == 0xBF) s.erase(0, 3);
+    while (!s.empty() && (s.back() == '\r' || s.back() == '\n' || s.back() == ' ')) s.pop_back();
+    if (s.empty()) { err = ERROR_EMPTY; return false; }
+    out = s;
+    return true;
+}
+#endif
+
+static const char* ConfluenceDir()
+{
+    static std::string cached;
+    if (!cached.empty()) return cached.c_str();
+#ifdef _WIN32
+    char buf[MAX_PATH * 2] = {};
+    DWORD len = GetEnvironmentVariableA("CONFLUENCE_DIR", buf, sizeof(buf));
+    if (len > 0 && len < sizeof(buf)) {
+        cached = std::string(buf, len);
+    } else {
+        LONG rcUser = 0, rcMachine = 0;
+        DWORD errA = 0, errP = 0;
+        std::string found;
+        const char* via = "registry (user)";
+        if (!ReadRegistryDir(HKEY_CURRENT_USER, found, rcUser)) {
+            via = "registry (machine)";
+            if (!ReadRegistryDir(HKEY_LOCAL_MACHINE, found, rcMachine)) {
+                via = "AppData file";
+                if (!ReadDirFile("APPDATA", found, errA)) {
+                    via = "ProgramData file";
+                    if (!ReadDirFile("PROGRAMDATA", found, errP)) found.clear();
+                }
+            }
+        }
+        if (found.empty()) {
+            char user[256] = {};
+            DWORD usize = sizeof(user);
+            GetUserNameA(user, &usize);
+            blog(LOG_WARNING, TAG "Confluence dir not configured (user=%s, hkcu=%ld, hklm=%ld, appdata file err=%lu, programdata file err=%lu); using LOCALAPPDATA",
+                 user, (long)rcUser, (long)rcMachine, (unsigned long)errA, (unsigned long)errP);
+            len = GetEnvironmentVariableA("LOCALAPPDATA", buf, sizeof(buf));
+            cached = std::string(buf, len) + "\\Confluence";
+        } else {
+            blog(LOG_INFO, TAG "Confluence dir found via %s", via);
+            cached = found;
+        }
+    }
+    for (auto& c : cached) if (c == '\\') c = '/';
+    blog(LOG_INFO, TAG "Confluence dir: %s", cached.c_str());
+#endif
+    return cached.c_str();
+}
+
+static bool IsConfluenceProcessAlive();
+
+// Lanza el server oculto, o no hace nada si la carpeta no tiene el script
+// (evita el cuadro de error de Windows Script Host).
+static void StartConfluenceHidden()
+{
+    QString vbs = QString::fromUtf8(ConfluenceDir()) + "/scripts/start-hidden.vbs";
+    if (!QFile::exists(vbs)) {
+        blog(LOG_WARNING, TAG "start-hidden.vbs not found: %s", vbs.toUtf8().constData());
+        return;
+    }
+    QProcess::startDetached("wscript.exe", { vbs });
+}
+
+static QString LoadBrandFontFamily()
+{
+    static QString cachedFamily;
+    if (!cachedFamily.isEmpty()) return cachedFamily;
+
+    const char* fontPath = obs_module_file("fonts/IBMPlexSans.ttf");
+    if (!fontPath) return QString();
+
+    int fontId = QFontDatabase::addApplicationFont(QString::fromUtf8(fontPath));
+    bfree((void*)fontPath);
+    if (fontId == -1) return QString();
+
+    auto families = QFontDatabase::applicationFontFamilies(fontId);
+    if (families.isEmpty()) return QString();
+
+    cachedFamily = families.first();
+    return cachedFamily;
+}
+
+MultiOutputWidget::MultiOutputWidget(QWidget* parent)
+    : QWidget(parent)
+{
+    setWindowTitle(Tr("Title"));
+
+    QString brandFont = LoadBrandFontFamily();
+    QString fontStack = brandFont.isEmpty()
+        ? QStringLiteral("\"Segoe UI\", sans-serif")
+        : QStringLiteral("\"%1\", \"Segoe UI\", sans-serif").arg(brandFont);
+
+    setAttribute(Qt::WA_StyledBackground, true);
+    setStyleSheet(QStringLiteral(
+        "QWidget { background-color: #0c0e13; color: #e6e8ee; font-size: 13px; font-family: %1; }"
+        "QPushButton {"
+        "  background-color: #1c202b; color: #e6e8ee; border: 1px solid #262b38;"
+        "  border-radius: 6px; padding: 8px 10px; font-weight: 600; }"
+        "QPushButton:hover { background-color: #232838; border-color: #6ee7b7; }"
+        "QPushButton:pressed { background-color: #161922; }"
+        "QPushButton:focus { border-color: #6ee7b7; }"
+        "QLabel { color: #9096ac; }"
+        "QLineEdit, QComboBox {"
+        "  background-color: #161922; color: #e6e8ee; border: 1px solid #262b38;"
+        "  border-radius: 6px; padding: 5px 7px; }"
+        "QLineEdit:focus, QComboBox:focus { border-color: #6ee7b7; }"
+        "QScrollArea { background-color: #0c0e13; border: none; }"
+        "QCheckBox { color: #e6e8ee; }"
+        "#mainStreamButton { border-color: #6ee7b7; font-weight: 700; }"
+    ).arg(fontStack));
+
+    container_ = new QWidget(&scroll_);
+    container_->setAttribute(Qt::WA_StyledBackground, true);
+    layout_ = new QVBoxLayout(container_);
+    layout_->setAlignment(Qt::AlignmentFlag::AlignTop);
+
+    // branded header - same mark/title/suite-tag pattern as the Confluence
+    // and Confluence Chat web docks, so all 3 read as one product family
+    auto headerRow = new QWidget(container_);
+    auto headerLayout = new QHBoxLayout(headerRow);
+    headerLayout->setContentsMargins(0, 0, 0, 4);
+    headerLayout->setSpacing(8);
+    auto brandMark = new QLabel(headerRow);
+    brandMark->setFixedSize(16, 16);
+    brandMark->setStyleSheet(
+        "background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        "  stop:0 #6ee7b7, stop:0.6 #9146ff, stop:1 #ff3b5c);"
+        "border-radius: 5px;"
+    );
+    auto titleLabel = new QLabel(Tr("Title"), headerRow);
+    titleLabel->setStyleSheet(QStringLiteral("color: #e6e8ee; font-weight: 700; font-size: 15px; font-family: %1;").arg(fontStack));
+    headerLayout->addWidget(brandMark);
+    headerLayout->addWidget(titleLabel);
+    headerLayout->addStretch();
+
+    // Banderita ES/EN: fuerza el idioma de este dock especifico via Tr(),
+    // independiente del idioma global de OBS (que solo se puede cambiar en
+    // Settings -> General, y aplica a todos los plugins a la vez).
+    const QString langBtnStyleBase = QStringLiteral(
+        "padding: 2px 4px; font-size: 13px; border-radius: 6px;");
+    langEsBtn_ = new QPushButton(u8"\U0001F1EA\U0001F1F8", headerRow);
+    langEsBtn_->setToolTip(u8"Español");
+    langEsBtn_->setStyleSheet(langBtnStyleBase);
+    langEnBtn_ = new QPushButton(u8"\U0001F1EC\U0001F1E7", headerRow);
+    langEnBtn_->setToolTip(u8"English");
+    langEnBtn_->setStyleSheet(langBtnStyleBase);
+    QObject::connect(langEsBtn_, &QPushButton::clicked, [this]() {
+        SetConfluenceLanguageSpanish(true);
+        RetranslateUi();
+    });
+    QObject::connect(langEnBtn_, &QPushButton::clicked, [this]() {
+        SetConfluenceLanguageSpanish(false);
+        RetranslateUi();
+    });
+    headerLayout->addWidget(langEsBtn_);
+    headerLayout->addWidget(langEnBtn_);
+
+    headerRow->setLayout(headerLayout);
+    layout_->addWidget(headerRow);
+
+    auto suiteTag = new QLabel(u8"CONFLUENCE SUITE", container_);
+    suiteTag->setStyleSheet("color: #9096ac; font-size: 9px; font-weight: 600; margin-left: 24px; margin-bottom: 8px;");
+    layout_->addWidget(suiteTag);
+
+    // Estado del servidor Confluence (Stream Info/Chat/Overlay) - corre
+    // aparte de este plugin, asi que antes la unica forma de notar que se
+    // habia caido era abrir el dock del navegador y ver que no cargaba.
+    auto confluenceRow = new QWidget(container_);
+    auto confluenceLayout = new QHBoxLayout(confluenceRow);
+    confluenceLayout->setContentsMargins(0, 0, 0, 8);
+    confluenceLayout->setSpacing(6);
+    confluenceDot_ = new QLabel(confluenceRow);
+    confluenceDot_->setFixedSize(8, 8);
+    confluenceStatusLabel_ = new QLabel(Tr("Confluence.Checking"), confluenceRow);
+    confluenceStatusLabel_->setStyleSheet("font-size: 11px;");
+    confluenceRestartBtn_ = new QPushButton(Tr("Btn.RestartConfluence"), confluenceRow);
+    confluenceRestartBtn_->setStyleSheet("padding: 3px 9px; font-size: 11px; font-weight: 600;");
+    QObject::connect(confluenceRestartBtn_, &QPushButton::clicked, [this]() {
+        RestartConfluenceServer();
+    });
+    confluenceRepairBtn_ = new QPushButton(Tr("Btn.RepairConfluence"), confluenceRow);
+    confluenceRepairBtn_->setStyleSheet("padding: 3px 9px; font-size: 11px; font-weight: 600;");
+    QObject::connect(confluenceRepairBtn_, &QPushButton::clicked, [this]() {
+        RepairConfluenceServer();
+    });
+    confluenceLayout->addWidget(confluenceDot_);
+    confluenceLayout->addWidget(confluenceStatusLabel_);
+    confluenceLayout->addStretch();
+    confluenceLayout->addWidget(confluenceRepairBtn_);
+    confluenceLayout->addWidget(confluenceRestartBtn_);
+    confluenceRow->setLayout(confluenceLayout);
+    layout_->addWidget(confluenceRow);
+
+    confluenceCheckTimer_ = new QTimer(this);
+    confluenceCheckTimer_->setInterval(5000);
+    QObject::connect(confluenceCheckTimer_, &QTimer::timeout, this, &MultiOutputWidget::CheckConfluenceStatus);
+    confluenceCheckTimer_->start();
+    // Al abrir OBS el server suele estar apagado y los docks de Stream Info/Chat
+    // se quedaban en "Esperando a Confluence" hasta darle a Reiniciar a mano.
+    // Sin stop.ps1: si ya corre no se toca, y node server.js sale solo si el
+    // puerto esta ocupado.
+    if (!IsConfluenceProcessAlive()) {
+        StartConfluenceHidden();
+    }
+    CheckConfluenceStatus();
+
+    // main OBS output (Twitch) start/stop - native obs-frontend-api, not a multi-rtmp
+    // target. Fila armada igual que las de PushWidgetImpl (badge + nombre + punto de
+    // estado, boton debajo) para que se lea como una fila mas de la lista, en vez de
+    // un boton ancho suelto - se agrega mas abajo, justo arriba de la lista de targets.
+    auto mainStreamRow = new QWidget(container_);
+    auto mainStreamRowLayout = new QVBoxLayout(mainStreamRow);
+    // Mismo margen inferior que separa cada fila de target de la siguiente
+    // (PushWidgetImpl usa un QSpacerItem(0, 10) al final de su grid) - sin esto
+    // la fila de Twitch quedaba pegada contra la de Youtube.
+    mainStreamRowLayout->setContentsMargins(0, 0, 0, 10);
+    mainStreamRowLayout->setSpacing(6);
+
+    auto mainStreamHeader = new QWidget(mainStreamRow);
+    auto mainStreamHeaderLayout = new QHBoxLayout(mainStreamHeader);
+    mainStreamHeaderLayout->setContentsMargins(0, 0, 0, 0);
+    mainStreamHeaderLayout->setSpacing(6);
+    mainStreamBadge_ = new QLabel(mainStreamHeader);
+    mainStreamBadge_->setFixedSize(18, 18);
+    mainStreamBadge_->setAlignment(Qt::AlignCenter);
+    char* twitchIconPath = obs_module_file("icons/twitch.png");
+    if (twitchIconPath) {
+        QPixmap pix(QString::fromUtf8(twitchIconPath));
+        mainStreamBadge_->setPixmap(pix.scaled(18, 18, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        bfree(twitchIconPath);
+    }
+    auto mainStreamName = new QLabel(u8"Twitch", mainStreamHeader);
+    mainStreamDot_ = new QLabel(mainStreamHeader);
+    mainStreamDot_->setFixedSize(9, 9);
+    mainStreamHeaderLayout->addWidget(mainStreamBadge_);
+    mainStreamHeaderLayout->addWidget(mainStreamName);
+    mainStreamHeaderLayout->addWidget(mainStreamDot_);
+    mainStreamHeaderLayout->addStretch();
+    mainStreamHeader->setLayout(mainStreamHeaderLayout);
+    mainStreamRowLayout->addWidget(mainStreamHeader);
+
+    mainStreamButton_ = new QPushButton(mainStreamRow);
+    mainStreamButton_->setObjectName("mainStreamButton");
+    QObject::connect(mainStreamButton_, &QPushButton::clicked, [this]() {
+        if (obs_frontend_streaming_active())
+            obs_frontend_streaming_stop();
+        else
+            obs_frontend_streaming_start();
+    });
+    mainStreamRowLayout->addWidget(mainStreamButton_);
+
+    mainStreamMsg_ = new QLabel(u8"", mainStreamRow);
+    mainStreamMsg_->setStyleSheet("font-size: 11px;");
+    mainStreamMsg_->setWordWrap(true);
+    mainStreamRowLayout->addWidget(mainStreamMsg_);
+
+    mainStreamRow->setLayout(mainStreamRowLayout);
+    UpdateMainStreamButton();
+
+    mainStreamStatsTimer_ = new QTimer(this);
+    mainStreamStatsTimer_->setInterval(std::chrono::milliseconds(1000));
+    QObject::connect(mainStreamStatsTimer_, &QTimer::timeout, this, &MultiOutputWidget::UpdateMainStreamStats);
+
+    // init widget
+    addTargetBtn_ = new QPushButton(Tr("Btn.NewTarget"), container_);
+    QObject::connect(addTargetBtn_, &QPushButton::clicked, [this]() {
+        auto& global = GlobalMultiOutputConfig();
+        auto newid = GenerateId(global);
+        auto target = std::make_shared<OutputTargetConfig>();
+        target->id = newid;
+        global.targets.emplace_back(target);
+        auto pushwidget = createPushWidget(newid, container_);
+        itemLayout_->addWidget(pushwidget);
+        if (pushwidget->ShowEditDlg())
+            SaveConfig();
+        else {
+            auto it = std::find_if(global.targets.begin(), global.targets.end(), [newid](auto& x) {
+                return x->id == newid;
+            });
+            if (it != global.targets.end())
+                global.targets.erase(it);
+            delete pushwidget;
+        }
+    });
+    layout_->addWidget(addTargetBtn_);
+
+    // start all, stop all
+    auto allBtnContainer = new QWidget(this);
+    auto allBtnLayout = new QHBoxLayout();
+    startAllBtn_ = new QPushButton(Tr("Btn.StartAll"), allBtnContainer);
+    allBtnLayout->addWidget(startAllBtn_);
+    stopAllBtn_ = new QPushButton(Tr("Btn.StopAll"), allBtnContainer);
+    allBtnLayout->addWidget(stopAllBtn_);
+    allBtnContainer->setLayout(allBtnLayout);
+    layout_->addWidget(allBtnContainer);
+
+    // Start/stop en orden (Twitch primero, despues cada target en el orden
+    // de la lista) con un pequeno delay entre cada uno - no espera a que el
+    // anterior confirme conexion, solo evita disparar todo en el mismo instante.
+    QObject::connect(startAllBtn_, &QPushButton::clicked, [this]() {
+        const int stepMs = 800;
+        int delayMs = 0;
+        QTimer::singleShot(delayMs, this, []() {
+            if (!obs_frontend_streaming_active())
+                obs_frontend_streaming_start();
+        });
+        delayMs += stepMs;
+        for (auto x : GetAllPushWidgets()) {
+            QTimer::singleShot(delayMs, this, [x]() { x->StartStreaming(); });
+            delayMs += stepMs;
+        }
+    });
+    QObject::connect(stopAllBtn_, &QPushButton::clicked, [this]() {
+        const int stepMs = 800;
+        int delayMs = 0;
+        QTimer::singleShot(delayMs, this, []() {
+            if (obs_frontend_streaming_active())
+                obs_frontend_streaming_stop();
+        });
+        delayMs += stepMs;
+        for (auto x : GetAllPushWidgets()) {
+            QTimer::singleShot(delayMs, this, [x]() { x->StopStreaming(); });
+            delayMs += stepMs;
+        }
+    });
+    
+    // Fila de Twitch (armada arriba) va justo encima de la lista de targets,
+    // como si fuera una fila mas de la lista.
+    layout_->addWidget(mainStreamRow);
+
+    // load config
+    itemLayout_ = new QVBoxLayout(container_);
+    LoadConfig();
+    layout_->addLayout(itemLayout_);
+
+    // donate section (unchanged)
+    if (std::string("\xe5\xa4\x9a\xe8\xb7\xaf\xe6\x8e\xa8\xe6\xb5\x81") == Tr("Title"))
+    {
+        auto cr = new QWidget(container_);
+        auto innerLayout = new QGridLayout(cr);
+        innerLayout->setAlignment(Qt::AlignmentFlag::AlignLeft);
+
+        auto label = new QLabel(u8"该插件免费提供，\r\n如您是付费取得，可向商家申请退款\r\n免费领红包或投喂支持插件作者。", cr);
+        innerLayout->addWidget(label, 0, 0, 1, 2);
+        innerLayout->setColumnStretch(0, 4);
+        auto label2 = new QLabel(u8"作者：雷鸣", cr);
+        innerLayout->addWidget(label2, 1, 0, 1, 1);
+        auto btnFeed = new QPushButton(u8"支持", cr);
+        innerLayout->addWidget(btnFeed, 1, 1, 1, 1);
+        
+        QObject::connect(btnFeed, &QPushButton::clicked, [this]() {
+            const char redbagpng[] = 
+                "iVBORw0KGgoAAAANSUhEUgAAAJgAAACXAQMAAADTWgC3AAAABlBMVEUAAAD///+l2Z/dAAAAAWJLR0Q"
+                "AiAUdSAAAAAlwSFlzAAAuIwAALiMBeKU/dgAAAWtJREFUSMe1lk2OgzAMhY1YZJkj5CbkYkggcTG4SY"
+                "6QZRaonmcHqs7PYtTaVVWSLxJu7JfnEP/+0H9ZIaKRA0aZz4QJJXuGQFsJO9HU104H1ihuTENl4IS12"
+                "YmVcFSa4unJuE2xZV69mOav5XrX6nRgMi6Ii+3Nr9p4k8m7w5OtmOVbzw8ZrOmbxs0Y/ktENMlfnQnx"
+                "NweG2vB1ZrZCPoyPfmbwXWSPiz1DvIrHwOHgFQsQtTkrmG6McRvqUu4aGbM28Cm1wRM62HtOP2DwkFF"
+                "ypKVoU/dEa8Y9rtaFJLg5EzscoSfBKMWgZ8aY9bj4EQ1jo9GDIR68kKukMCF/6pPWTPW0R9XulVNzpj"
+                "6Z5ZzMpOZrzvRElPC49Awx2LOi3k7aP+akhnL1AEMmPYphvtqeGD032TPt5zB2kQBq5Mgo9hrl7lceT"
+                "MQsEkD80YH1O9xRw9Vzn/cSQ6Y6EK1JH3nVxvss/GCf3L3/YF97Nxv6vuoIAwAAAABJRU5ErkJggg=="
+                ;
+            const char alipaypng[] = 
+                "iVBORw0KGgoAAAANSUhEUgAAALsAAAC4AQMAAACByg+HAAAABlBMVEUAAAD///+l2Z/dAAAAAWJLR0Q"
+                "AiAUdSAAAAAlwSFlzAAAuIwAALiMBeKU/dgAAAVtJREFUWMPNmEGugzAMRM0qx+CmIbkpx8gK1zM2/U"
+                "L66w4RogqvC5dhxqbm/6/TfgEuwzr8PNwnjhP7pgYNxR1r97XPhUvxjUsPztj0hkJ7O7c4m/V3gCg36"
+                "r5Q68uA7SHtaC8BlBbP2T4awFNzEaANOtSt4+EPEciEiKJn2eCZJSIQ5XbU5yFt+HNUfIgBNqFo6Grh"
+                "BDxttIQcoL5ICrsTbdAQWgBPIltxK7uVRaeLQToTFRMbb+JoYoAHjsG63UWXtFIQm2w/mV9x9vodUnC"
+                "vCWfuiA+oqwaLH7Al8qL/aS4GA9I6zkz/bbFBSsHVKi++Dftg89YC53DDq8iLTJCSVgcq6DlMZGRkzm"
+                "pBtW2jRRH3flU3UIIacWBLduv0gxxxltGTaUtOFS4HVSJHnBp35jvAsbJnV/RbewWgtLVyAlODkjZSd"
+                "eMrkNfsIwX3awYfuLLEaGKg/OvlAz+wXVruSNSgAAAAAElFTkSuQmCC";
+            const char wechatpng[] = 
+                "iVBORw0KGgoAAAANSUhEUgAAAK8AAACtAQMAAAD8lL09AAAABlBMVEUAAAD///+l2Z/dAAAAAWJLR0Q"
+                "AiAUdSAAAAAlwSFlzAAAuIwAALiMBeKU/dgAAAbpJREFUSMe9l0GugzAMRI26yDJHyE3Si1WiEhcrN8"
+                "kRWLJA8Z9xaNUv/eUfUIXgqQtn4pkY87+ubv+Cd8O1T3g2y4unzveqxXf3BniUeLKa3XcxrnZr+32zg"
+                "iXPDvy0S/C04WYo4jpsKCK97FH2K3DovfqzoJzAX9sgwtFVNS/tvH03mwYPs6zb7PjDrf22lAZT6ugq"
+                "wwtaCzLYWLwO13yUUQl3N70yDSTFWOqCJbORsdloLYguxrSNgxyWhl3Z0l2LjWaZUE541qaRFUoM342"
+                "5sDTYdY5EZE1KjHU/z25+0UV3yi/GE4LeubHe0V9QYFZjEOhN70QOmp0JocSdGT82Nh+D7nrcQoHkDO"
+                "GOcmLnhXil3vAsy5nRWhS9SjGkhmMiddHIMO6580oMu5a0xpAC0aOSOHd0mC+jodjNnhyVqDH1Tj3Ts"
+                "0hEm3CGv7dYhDkdQGr0cOJxxquMM02GI44g+tKiqwwZVd4HugjHfOKxeEYvQ9jVOKawzrRnQkQSf4Yz"
+                "EeasiWHhwfYNF8WkIscc985pKCaGSzA9S6eGAmpMvRlFzonBLZ6qFp8nyhxSM/IP+3x2arDwc/kHxnM"
+                "tm62qBBUAAAAASUVORK5CYII=";
+            auto donateWnd = new QDialog();
+            donateWnd->setWindowTitle(u8"赞助");
+            QTabWidget* tab = new QTabWidget(donateWnd);
+            auto redbagQr = new QLabel(donateWnd);
+            auto redbagQrBmp = QPixmap::fromImage(QImage::fromData(QByteArray::fromBase64(QByteArray::fromRawData(redbagpng, sizeof(redbagpng) - 1)), "png"));
+            redbagQr->setPixmap(redbagQrBmp);
+            tab->addTab(redbagQr, u8"支付宝领红包");
+            auto aliQr = new QLabel(donateWnd);
+            auto aliQrBmp = QPixmap::fromImage(QImage::fromData(QByteArray::fromBase64(QByteArray::fromRawData(alipaypng, sizeof(alipaypng) - 1)), "png"));
+            aliQr->setPixmap(aliQrBmp);
+            tab->addTab(aliQr, u8"支付宝打赏");
+            auto weQr = new QLabel(donateWnd);
+            auto weQrBmp = QPixmap::fromImage(QImage::fromData(QByteArray::fromBase64(QByteArray::fromRawData(wechatpng, sizeof(wechatpng) - 1)), "png"));
+            weQr->setPixmap(weQrBmp);
+            tab->addTab(weQr, u8"微信打赏");
+
+            auto layout = new QGridLayout();
+            layout->setRowStretch(0, 1);
+            layout->setColumnStretch(0, 1);
+            layout->addWidget(new QLabel(u8"打赏并非购买，不提供退款。", donateWnd), 0, 0);
+            layout->addWidget(tab, 1, 0);
+            donateWnd->setLayout(layout);
+            donateWnd->setMinimumWidth(360);
+            donateWnd->exec();
+        });
+
+        layout_->addWidget(cr);
+    }
+    else
+    {
+        auto label = new QLabel(u8"<p>Confluence Multistream — by NOX TAIPAN</p>", container_);
+        label->setTextFormat(Qt::RichText);
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet("color: #7d8399; font-size: 11px;");
+        layout_->addWidget(label);
+    }
+
+    scroll_.setWidgetResizable(true);
+    scroll_.setWidget(container_);
+
+    auto fullLayout = new QGridLayout(this);
+    fullLayout->setContentsMargins(0, 0, 0, 0);
+    fullLayout->setRowStretch(0, 1);
+    fullLayout->setColumnStretch(0, 1);
+    fullLayout->addWidget(&scroll_, 0, 0);
+}
+
+// ✅ FIX: RefreshUI method (now declared as a slot)
+void MultiOutputWidget::RefreshUI() {
+    // Clear existing widgets from itemLayout_
+    QLayoutItem* item;
+    while ((item = itemLayout_->takeAt(0)) != nullptr) {
+        if (item->widget()) {
+            item->widget()->deleteLater();  // Use deleteLater for safety
+        }
+        delete item;
+    }
+    
+    // Reload the config
+    LoadConfig();
+    
+    // Force UI update
+    container_->adjustSize();
+    update();
+    
+    blog(LOG_INFO, TAG "UI refreshed successfully");
+}
+
+std::vector<PushWidget*> MultiOutputWidget::GetAllPushWidgets()
+{
+    std::vector<PushWidget*> result;
+    
+    // Check all widgets in the item layout
+    for (int i = 0; i < itemLayout_->count(); ++i) {
+        QLayoutItem* item = itemLayout_->itemAt(i);
+        if (item && item->widget()) {
+            PushWidget* pushWidget = qobject_cast<PushWidget*>(item->widget());
+            if (pushWidget) {
+                result.push_back(pushWidget);
+            }
+        }
+    }
+    
+    return result;
+}
+
+void MultiOutputWidget::SaveConfig()
+{
+    SaveMultiOutputConfig();
+}
+
+void MultiOutputWidget::LoadConfig()
+{
+    // Clear existing widgets safely
+    QLayoutItem* item;
+    while ((item = itemLayout_->takeAt(0)) != nullptr) {
+        if (item->widget()) {
+            item->widget()->deleteLater();
+        }
+        delete item;
+    }
+    
+    GlobalMultiOutputConfig() = {};
+
+    if (LoadMultiOutputConfig()) {
+        for(auto x: GlobalMultiOutputConfig().targets)
+        {
+            auto pushwidget = createPushWidget(x->id, container_);
+            itemLayout_->addWidget(pushwidget);
+        }
+    }
+}
+
+bool MultiOutputWidget::AddNewTarget(const QString& name, const QString& protocol)
+{
+    // ✅ ADD INPUT VALIDATION
+    if (name.isEmpty()) {
+        blog(LOG_WARNING, TAG "AddNewTarget failed: Empty name provided");
+        return false;
+    }
+    
+    // Validate protocol
+    QString validProtocol = protocol.toLower();
+    if (validProtocol.isEmpty()) {
+        validProtocol = "rtmp"; // Default to RTMP
+    }
+    
+    // Check if protocol is supported
+    QSet<QString> supportedProtocols = {"rtmp", "srt"}; // Add more as needed
+    if (!supportedProtocols.contains(validProtocol)) {
+        blog(LOG_WARNING, TAG "AddNewTarget failed: Unsupported protocol '%s'", validProtocol.toUtf8().constData());
+        return false;
+    }
+    
+    auto& global = GlobalMultiOutputConfig();
+    auto newid = GenerateId(global);
+    auto target = std::make_shared<OutputTargetConfig>();
+    target->id = newid;
+    target->name = name.toStdString();
+    target->protocol = validProtocol.toStdString();
+    global.targets.emplace_back(target);
+    
+    SaveConfig();
+    RefreshUI();
+    
+    blog(LOG_INFO, TAG "Added new target: %s (Protocol: %s)", name.toUtf8().constData(), validProtocol.toUtf8().constData());
+    return true;
+}
+
+bool MultiOutputWidget::CloneTarget(const QString& sourceId, const QString& newName, const QString& newStreamKey)
+{
+    for (auto* widget : GetAllPushWidgets()) {
+        if (widget->GetTargetId() == sourceId) {
+            auto& global = GlobalMultiOutputConfig();
+            auto newid = GenerateId(global);
+            
+            auto sourceConfig = widget->GetConfig();
+            if (!sourceConfig) {
+                return false;
+            }
+            
+            auto target = std::make_shared<OutputTargetConfig>(*sourceConfig);
+            target->id = newid;
+            target->name = newName.toStdString();
+            
+            if (!newStreamKey.isEmpty()) {
+                try {
+                    auto serviceParams = nlohmann::json::parse(target->serviceParam.dump());
+                    
+                    if (target->protocol == "RTMP" || target->protocol == "rtmp") {
+                        if (serviceParams.contains("key")) {
+                            serviceParams["key"] = newStreamKey.toStdString();
+                        }
+                    } else if (target->protocol == "SRT" || target->protocol == "srt") {
+                        if (serviceParams.contains("streamid")) {
+                            serviceParams["streamid"] = newStreamKey.toStdString();
+                        }
+                    }
+                    
+                    target->serviceParam = serviceParams;
+                    
+                } catch (const std::exception& e) {
+                    blog(LOG_WARNING, TAG "Failed to parse service parameters for stream key update: %s", e.what());
+                }
+            }
+            
+            global.targets.emplace_back(target);
+            SaveConfig();
+            
+            // ✅ FIX: Direct call to RefreshUI (assumes we're in UI thread)
+            RefreshUI();
+            
+            return true;
+        }
+    }
+    return false;
+}
+
+bool MultiOutputWidget::UpdateTargetName(const QString& targetId, const QString& newName)
+{
+    // ✅ ADD INPUT VALIDATION
+    if (newName.isEmpty()) {
+        blog(LOG_WARNING, TAG "UpdateTargetName failed: Empty name provided for target %s", targetId.toUtf8().constData());
+        return false;
+    }
+    
+    for (auto* widget : GetAllPushWidgets()) {
+        if (widget->GetTargetId() == targetId) {
+            widget->GetConfig()->name = newName.toStdString();
+            widget->UpdateUI();
+            SaveConfig();
+            RefreshUI();
+            
+            blog(LOG_INFO, TAG "Updated target name: %s -> %s", 
+                 widget->GetConfig()->name.c_str(), newName.toUtf8().constData());
+            return true;
+        }
+    }
+    
+    blog(LOG_WARNING, TAG "UpdateTargetName failed: Target not found %s", targetId.toUtf8().constData());
+    return false;
+}
+
+bool MultiOutputWidget::UpdateTargetStreamKey(const QString& targetId, const QString& streamKey)
+{
+    if (streamKey.isEmpty()) {
+        blog(LOG_WARNING, TAG "UpdateStreamKey failed: Empty stream key provided for target %s", targetId.toUtf8().constData());
+        return false;
+    }
+    
+    for (auto* widget : GetAllPushWidgets()) {
+        if (widget->GetTargetId() == targetId) {
+            auto config = widget->GetConfig();
+            if (!config) {
+                blog(LOG_WARNING, TAG "UpdateStreamKey failed: Could not get config for target %s", targetId.toUtf8().constData());
+                return false;
+            }
+            
+            try {
+                // Parse the current service parameters
+                auto serviceParams = nlohmann::json::parse(config->serviceParam.dump());
+                
+                // Use protocol-specific parameter names
+                std::string param_name = "key"; // Default for RTMP and most protocols
+                
+                if (config->protocol == "srt" || config->protocol == "SRT") {
+                    param_name = "streamid"; // SRT uses streamid
+                }
+                // WHIP uses "key" same as RTMP, so no special handling needed
+                
+                serviceParams[param_name] = streamKey.toStdString();
+                config->serviceParam = serviceParams;
+                
+                blog(LOG_INFO, TAG "Updated stream key for target %s (%s): %s = %s", 
+                     targetId.toUtf8().constData(), 
+                     config->protocol.c_str(),
+                     param_name.c_str(),
+                     streamKey.toUtf8().constData());
+                
+                SaveConfig();
+                RefreshUI();
+                return true;
+                
+            } catch (const std::exception& e) {
+                blog(LOG_WARNING, TAG "Failed to update stream key for target %s: %s", 
+                     targetId.toUtf8().constData(), e.what());
+                return false;
+            }
+        }
+    }
+    
+    blog(LOG_WARNING, TAG "UpdateStreamKey failed: Target not found %s", targetId.toUtf8().constData());
+    return false;
+}
+
+bool MultiOutputWidget::UpdateTargetServiceParam(const QString& targetId, const QString& key, const QString& value)
+{
+    if (key.isEmpty() || value.isEmpty()) {
+        blog(LOG_WARNING, TAG "UpdateServiceParam failed: Empty key or value for target %s", targetId.toUtf8().constData());
+        return false;
+    }
+    
+    for (auto* widget : GetAllPushWidgets()) {
+        if (widget->GetTargetId() == targetId) {
+            auto config = widget->GetConfig();
+            if (!config) {
+                blog(LOG_WARNING, TAG "UpdateServiceParam failed: Could not get config for target %s", targetId.toUtf8().constData());
+                return false;
+            }
+            
+            try {
+                auto serviceParams = nlohmann::json::parse(config->serviceParam.dump());
+                
+                std::string keyStr = key.toStdString();
+                std::string valueStr = value.toStdString();
+                
+                // Special handling for boolean parameters
+                if (valueStr == "true" || valueStr == "false") {
+                    serviceParams[keyStr] = (valueStr == "true");
+                } else {
+                    serviceParams[keyStr] = valueStr;
+                }
+                
+                config->serviceParam = serviceParams;
+                
+                blog(LOG_INFO, TAG "Updated service parameter for target %s: %s = %s", 
+                     targetId.toUtf8().constData(), key.toUtf8().constData(), value.toUtf8().constData());
+                
+                SaveConfig();
+                RefreshUI();
+                return true;
+                
+            } catch (const std::exception& e) {
+                blog(LOG_WARNING, TAG "Failed to update service parameter for target %s: %s", 
+                     targetId.toUtf8().constData(), e.what());
+                return false;
+            }
+        }
+    }
+    
+    blog(LOG_WARNING, TAG "UpdateServiceParam failed: Target not found %s", targetId.toUtf8().constData());
+    return false;
+}
+
+bool MultiOutputWidget::DeleteTarget(const QString& targetId)
+{
+    auto& global = GlobalMultiOutputConfig();
+    auto it = std::find_if(global.targets.begin(), global.targets.end(), 
+        [&](auto& target) { return target->id == targetId.toStdString(); });
+    
+    if (it != global.targets.end()) {
+        global.targets.erase(it);
+        SaveConfig();
+        RefreshUI();  // ✅ FIX: Direct call to RefreshUI
+        return true;
+    }
+    
+    return false;
+}
+
+bool MultiOutputWidget::UpdateSyncStart(const QString& targetId, bool syncStart)
+{
+    for (auto* widget : GetAllPushWidgets()) {
+        if (widget->GetTargetId() == targetId) {
+            auto config = widget->GetConfig();
+            if (!config) {
+                blog(LOG_WARNING, TAG "UpdateSyncStart failed: Could not get config for target %s", targetId.toUtf8().constData());
+                return false;
+            }
+            
+            config->syncStart = syncStart;
+            
+            blog(LOG_INFO, TAG "Updated sync start for target %s: %s", 
+                 targetId.toUtf8().constData(), syncStart ? "true" : "false");
+            
+            SaveConfig();
+            RefreshUI();
+            return true;
+        }
+    }
+    
+    blog(LOG_WARNING, TAG "UpdateSyncStart failed: Target not found %s", targetId.toUtf8().constData());
+    return false;
+}
+
+bool MultiOutputWidget::UpdateSyncStop(const QString& targetId, bool syncStop)
+{
+    for (auto* widget : GetAllPushWidgets()) {
+        if (widget->GetTargetId() == targetId) {
+            auto config = widget->GetConfig();
+            if (!config) {
+                blog(LOG_WARNING, TAG "UpdateSyncStop failed: Could not get config for target %s", targetId.toUtf8().constData());
+                return false;
+            }
+            
+            config->syncStop = syncStop;
+            
+            blog(LOG_INFO, TAG "Updated sync stop for target %s: %s", 
+                 targetId.toUtf8().constData(), syncStop ? "true" : "false");
+            
+            SaveConfig();
+            RefreshUI();
+            return true;
+        }
+    }
+    
+    blog(LOG_WARNING, TAG "UpdateSyncStop failed: Target not found %s", targetId.toUtf8().constData());
+    return false;
+}
+
+// Vivo/muerto se decide leyendo el PID que el propio server.js escribe en
+// scripts/confluence.pid y chequeando si ese proceso sigue corriendo -
+// mismo archivo que ya usa scripts/stop.ps1, sin agregar una dependencia
+// de red (Qt Network) solo para esto.
+static bool IsConfluenceProcessAlive()
+{
+#ifdef _WIN32
+    std::ifstream f(std::string(ConfluenceDir()) + "/scripts/confluence.pid");
+    if (!f) return false;
+
+    DWORD pid = 0;
+    f >> pid;
+    if (pid == 0) return false;
+
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!h) return false;
+
+    DWORD exitCode = 0;
+    bool alive = GetExitCodeProcess(h, &exitCode) && exitCode == STILL_ACTIVE;
+    CloseHandle(h);
+    return alive;
+#else
+    return false;
+#endif
+}
+
+void MultiOutputWidget::RetranslateUi()
+{
+    // CheckConfluenceStatus y UpdateMainStreamButton ya recalculan su texto
+    // a partir del estado en vivo cada vez que se llaman - no hace falta
+    // guardar aparte "cual era el ultimo estado" para retraducir estos dos.
+    CheckConfluenceStatus();
+    UpdateMainStreamButton();
+
+    if (addTargetBtn_) addTargetBtn_->setText(Tr("Btn.NewTarget"));
+    if (startAllBtn_) startAllBtn_->setText(Tr("Btn.StartAll"));
+    if (stopAllBtn_) stopAllBtn_->setText(Tr("Btn.StopAll"));
+    if (confluenceRestartBtn_) confluenceRestartBtn_->setText(Tr("Btn.RestartConfluence"));
+    if (confluenceRepairBtn_) confluenceRepairBtn_->setText(Tr("Btn.RepairConfluence"));
+
+    // Reconstruye las filas de target desde cero - cada PushWidgetImpl nuevo
+    // lee Tr() al crearse, asi que esto las deja en el idioma recien elegido
+    // sin tener que exponer un metodo de retraduccion propio en push-widget.cpp.
+    RefreshUI();
+}
+
+void MultiOutputWidget::CheckConfluenceStatus()
+{
+    if (!confluenceDot_) return;
+
+    bool alive = IsConfluenceProcessAlive();
+    confluenceDot_->setStyleSheet(QString("background-color: %1; border-radius: 4px;")
+        .arg(alive ? "#45d9a0" : "#3a4050"));
+    confluenceStatusLabel_->setText(Tr(alive ? "Confluence.Online" : "Confluence.Offline"));
+}
+
+void MultiOutputWidget::RestartConfluenceServer()
+{
+    confluenceRestartBtn_->setEnabled(false);
+    confluenceStatusLabel_->setText(Tr("Confluence.Restarting"));
+
+    QString dir = QString::fromUtf8(ConfluenceDir());
+    // mismos dos scripts que usa obs-autostart.lua al abrir/cerrar OBS -
+    // stop.ps1 mata el PID guardado si sigue vivo, start-hidden.vbs lanza
+    // uno nuevo oculto. node server.js ya sale solo sin romper nada si el
+    // puerto termina ocupado por otra instancia (ver server.js).
+    QProcess::execute("powershell.exe", { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", dir + "/scripts/stop.ps1" });
+    StartConfluenceHidden();
+
+    QTimer::singleShot(2000, this, [this]() {
+        CheckConfluenceStatus();
+        confluenceRestartBtn_->setEnabled(true);
+    });
+}
+
+// "Reparar" existe para el caso visto en vivo (2026-09-15): node_modules/
+// termino corrupto (faltaba express/lib/router entero) y el server tiraba
+// MODULE_NOT_FOUND al arrancar - Reiniciar solo no alcanza ahi porque
+// vuelve a lanzar el mismo node_modules roto. Corre `npm install` (async,
+// QProcess normal en vez de ::execute, para no congelar la UI de OBS los
+// varios segundos que tarda) y recien despues reinicia el server, pase lo
+// que pase con el install - si igual queda mal, CheckConfluenceStatus lo
+// va a mostrar offline y hay que mirar el log a mano.
+void MultiOutputWidget::RepairConfluenceServer()
+{
+    confluenceRepairBtn_->setEnabled(false);
+    confluenceRestartBtn_->setEnabled(false);
+    confluenceStatusLabel_->setText(Tr("Confluence.Repairing"));
+
+    QString dir = QString::fromUtf8(ConfluenceDir());
+
+    // Sin carpeta valida no hay nada que reparar: no dejar los botones bloqueados.
+    if (!QFile::exists(dir + "/package.json")) {
+        blog(LOG_WARNING, TAG "Confluence repair: package.json not found in %s", dir.toUtf8().constData());
+        CheckConfluenceStatus();
+        confluenceRepairBtn_->setEnabled(true);
+        confluenceRestartBtn_->setEnabled(true);
+        return;
+    }
+
+    auto npm = new QProcess(this);
+    npm->setWorkingDirectory(dir);
+    // Instalacion con el .exe: Node viaja en <dir>/runtime y no esta en el PATH.
+    auto env = QProcessEnvironment::systemEnvironment();
+    env.insert("PATH", dir + "/runtime;" + env.value("PATH"));
+    npm->setProcessEnvironment(env);
+    // Con el instalador hay un respaldo de node_modules (repair.ps1, sin internet);
+    // desde el repositorio se reinstala con npm.
+    if (QFile::exists(dir + "/scripts/repair.ps1")) {
+        npm->setProgram("powershell.exe");
+        npm->setArguments({ "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", dir + "/scripts/repair.ps1" });
+    } else {
+        npm->setProgram("cmd.exe");
+        npm->setArguments({ "/c", "npm", "install" });
+    }
+    QObject::connect(npm, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+        this, [this, dir, npm](int exitCode, QProcess::ExitStatus /*status*/) {
+            if (exitCode != 0) {
+                blog(LOG_WARNING, TAG "Confluence repair: npm install exited with code %d", exitCode);
+            }
+            npm->deleteLater();
+
+            QProcess::execute("powershell.exe", { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", dir + "/scripts/stop.ps1" });
+            StartConfluenceHidden();
+
+            QTimer::singleShot(2000, this, [this]() {
+                CheckConfluenceStatus();
+                confluenceRepairBtn_->setEnabled(true);
+                confluenceRestartBtn_->setEnabled(true);
+            });
+        });
+    // Si npm ni siquiera arranca, 'finished' nunca llega y los botones quedaban muertos.
+    QObject::connect(npm, &QProcess::errorOccurred, this, [this, npm](QProcess::ProcessError err) {
+        if (err != QProcess::FailedToStart) return;
+        blog(LOG_WARNING, TAG "Confluence repair: npm failed to start");
+        npm->deleteLater();
+        CheckConfluenceStatus();
+        confluenceRepairBtn_->setEnabled(true);
+        confluenceRestartBtn_->setEnabled(true);
+    });
+    npm->start();
+}
+
+void MultiOutputWidget::UpdateMainStreamButton()
+{
+    if (!mainStreamButton_) return;
+
+    bool active = obs_frontend_streaming_active();
+    mainStreamButton_->setText(active
+        ? Tr("Btn.StopMainStream")
+        : Tr("Btn.StartMainStream"));
+    mainStreamButton_->setStyleSheet(active
+        ? "background-color: #1c3b30; color: #6ee7b7; border-color: #45d9a0; font-weight: 700;"
+        : "");
+
+    // Mismo verde/gris que SetStatusDot usa en las filas de target
+    // (push-widget.cpp) para que se lea igual de un vistazo.
+    if (mainStreamDot_) {
+        mainStreamDot_->setStyleSheet(QString("background-color: %1; border-radius: 4px;")
+            .arg(active ? "#45d9a0" : "#3a4050"));
+    }
+}
+
+void MultiOutputWidget::UpdateMainStreamStats()
+{
+    if (!mainStreamMsg_) return;
+
+    OBSOutputAutoRelease output = obs_frontend_get_streaming_output();
+    if (!output) return;
+
+    static const char* units[] = {
+        "bps", "Kbps", "Mbps", "Gbps", "Tbps", "Pbps", "Ebps", "Zbps", "Ybps"
+    };
+
+    auto new_bytes = obs_output_get_total_bytes(output);
+    auto new_frames = obs_output_get_total_frames(output);
+    auto now = std::chrono::steady_clock::now();
+
+    auto interval = std::chrono::duration_cast<std::chrono::duration<double>>(now - mainStreamLastInfoTime_).count();
+    if (interval > 0) {
+        auto duration = now - mainStreamBeginTime_;
+        auto hh = std::chrono::duration_cast<std::chrono::hours>(duration);
+        duration -= hh;
+        auto mm = std::chrono::duration_cast<std::chrono::minutes>(duration);
+        duration -= mm;
+        auto ss = std::chrono::duration_cast<std::chrono::seconds>(duration);
+        duration -= ss;
+
+        char strDuration[64] = { 0 };
+        snprintf(strDuration, sizeof(strDuration), "%02d:%02d:%02d", (int)hh.count(), (int)mm.count(), (int)ss.count());
+
+        char strFps[32] = { 0 };
+        snprintf(strFps, sizeof(strFps), "%d FPS", static_cast<int>(std::round((new_frames - mainStreamTotalFrames_) / interval)));
+
+        auto bps = (new_bytes - mainStreamTotalBytes_) * 8 / interval;
+        std::string strBps;
+        if (bps > 0) {
+            int unitMaxIndex = sizeof(units) / sizeof(*units);
+            int unitIndex = static_cast<int>(log10(bps) / 3);
+            if (unitIndex >= unitMaxIndex)
+                unitIndex = unitMaxIndex - 1;
+            strBps = std::to_string(bps / pow(1000, unitIndex)).substr(0, 4);
+            if (!strBps.empty() && strBps.back() == '.')
+                strBps.pop_back();
+            strBps += std::string(" ") + units[unitIndex];
+        } else {
+            strBps = "0 bps";
+        }
+
+        mainStreamMsg_->setText((std::string(strDuration) + "  " + strBps + "  " + strFps).c_str());
+    }
+
+    mainStreamTotalFrames_ = new_frames;
+    mainStreamTotalBytes_ = new_bytes;
+    mainStreamLastInfoTime_ = now;
+}
+
+void MultiOutputWidget::OnOBSEvent(obs_frontend_event event)
+{
+    switch (event) {
+    case OBS_FRONTEND_EVENT_STREAMING_STARTING:
+        UpdateMainStreamButton();
+        break;
+    case OBS_FRONTEND_EVENT_STREAMING_STARTED:
+        mainStreamBeginTime_ = std::chrono::steady_clock::now();
+        mainStreamLastInfoTime_ = mainStreamBeginTime_;
+        mainStreamTotalFrames_ = 0;
+        mainStreamTotalBytes_ = 0;
+        if (mainStreamStatsTimer_) mainStreamStatsTimer_->start();
+        UpdateMainStreamButton();
+        break;
+    case OBS_FRONTEND_EVENT_STREAMING_STOPPING:
+        UpdateMainStreamButton();
+        break;
+    case OBS_FRONTEND_EVENT_STREAMING_STOPPED:
+        if (mainStreamStatsTimer_) mainStreamStatsTimer_->stop();
+        if (mainStreamMsg_) mainStreamMsg_->setText("");
+        UpdateMainStreamButton();
+        break;
+    default:
+        break;
+    }
+}
+
+PushWidget* MultiOutputWidget::FindPushWidgetById(const QString& targetId)
+{
+    for (auto* widget : GetAllPushWidgets()) {
+        if (widget->GetTargetId() == targetId) {
+            return widget;
+        }
+    }
+    return nullptr;
+}

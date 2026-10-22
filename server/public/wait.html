@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Confluence</title>
+  <style>
+    html,body{margin:0;height:100%;background:#0c1330;color:#e8ecff;font-family:"IBM Plex Sans","Segoe UI",sans-serif}
+    body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+    .spin{width:34px;height:34px;border:3px solid #2a3a8a;border-top-color:#7fa0ff;border-radius:50%;animation:s 1s linear infinite}
+    @keyframes s{to{transform:rotate(360deg)}}
+    small{opacity:.6}
+  </style>
+</head>
+<body>
+  <div class="spin"></div>
+  <div id="msg">Esperando a Confluence…</div>
+  <small id="sub">Se conectará solo cuando el servidor esté listo</small>
+<script>
+// Loader para docks de OBS: CEF no reintenta tras "connection refused".
+// Dock URL: file:///.../public/wait.html?to=/currents.html  (también sirve desde el propio server).
+(function () {
+  var params = new URLSearchParams(location.search);
+  var port = params.get('port') || '7773';
+  var to = params.get('to') || '/';
+  var base = 'http://localhost:' + port;
+  if (/^en/i.test(navigator.language)) {
+    document.getElementById('msg').textContent = 'Waiting for Confluence…';
+    document.getElementById('sub').textContent = 'It will connect by itself once the server is ready';
+  }
+  function probe() {
+    // no-cors: la respuesta es opaca pero resuelve si el server responde; rechaza si lo rechaza.
+    fetch(base + '/', { mode: 'no-cors', cache: 'no-store' })
+      .then(function () { location.replace(base + to); })
+      .catch(function () { setTimeout(probe, 1500); });
+  }
+  probe();
+})();
+</script>
+</body>
+</html>

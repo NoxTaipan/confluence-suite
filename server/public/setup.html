@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Confluence - Conectar plataforma</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { width: 340px; padding: 20px; }
+    h2 { margin: 0 0 6px; font-size: 18px; }
+    p, li { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    label { display: block; margin: 12px 0 4px; font-size: 12px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; }
+    button { margin-top: 16px; width: 100%; padding: 9px; cursor: pointer; }
+    #msg { margin-top: 10px; font-size: 12px; }
+    code { user-select: all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 id="title">Conectar</h2>
+    <p>Primera vez: pega los datos de tu app de desarrollador. Se guardan solo en este equipo y luego te llevo a iniciar sesion con tu usuario y clave de la plataforma.</p>
+    <ol>
+      <li>Crea o abre tu app: <a id="devlink" target="_blank" rel="noopener">consola de desarrollador</a></li>
+      <li>Redirect URL: <code id="redir"></code></li>
+    </ol>
+    <label for="cid">Client ID</label>
+    <input id="cid" autocomplete="off" />
+    <label for="sec">Client Secret</label>
+    <input id="sec" type="password" autocomplete="off" />
+    <button id="go">Guardar y conectar</button>
+    <div id="msg"></div>
+  </div>
+  <script>
+    const platform = new URLSearchParams(location.search).get('platform') || 'twitch';
+    const names = { twitch: 'Twitch', youtube: 'YouTube', kick: 'Kick' };
+    const links = { twitch: 'https://dev.twitch.tv/console/apps', youtube: 'https://console.cloud.google.com/apis/credentials', kick: 'https://kick.com/settings/developer' };
+    document.getElementById('title').textContent = 'Conectar ' + (names[platform] || platform);
+    document.getElementById('devlink').href = links[platform] || '#';
+    document.getElementById('redir').textContent = location.origin + '/auth/' + platform + '/callback';
+    const msg = document.getElementById('msg');
+    document.getElementById('go').onclick = async () => {
+      const clientId = document.getElementById('cid').value.trim();
+      const clientSecret = document.getElementById('sec').value.trim();
+      if (!clientId || !clientSecret) { msg.textContent = 'Completa ambos campos.'; return; }
+      msg.textContent = 'Guardando...';
+      const r = await fetch('/api/setup/' + platform, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId, clientSecret }) });
+      if (!r.ok) { msg.textContent = 'Error al guardar.'; return; }
+      msg.textContent = 'Guardado. Reiniciando Confluence...';
+      for (let i = 0; i < 40; i++) {
+        await new Promise(s => setTimeout(s, 750));
+        try { const s = await fetch('/api/setup/status', { cache: 'no-store' }); if (s.ok && (await s.json())[platform]) { location.href = '/auth/' + platform; return; } } catch {}
+      }
+      msg.textContent = 'No volvio el servidor; reinicialo con el boton Restart del dock Multistream.';
+    };
+  </script>
+</body>
+</html>
