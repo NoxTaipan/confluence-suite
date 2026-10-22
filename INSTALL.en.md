@@ -119,7 +119,20 @@ If you installed the Stream Deck component, **restart the Stream Deck app**. The
 | Create Clip (Twitch) | Creates a clip and opens the editor | Confluence running, channel live |
 | Confluence Status | Shows chat and stream status on the dial (Stream Deck+) | Confluence + obs-websocket |
 
-**obs-websocket** ships with OBS: under **Tools → WebSocket Server Settings** enable the server and copy or generate the password. Then, in the Property Inspector of **Multistream Target**, enter the host (`127.0.0.1`), the port (`4455`), the password and the exact target name. In **Push Stream Info** and **Send Chat Message** the Confluence URL defaults to `http://127.0.0.1:7773`. These fields are global: set them once.
+### Connect Stream Deck to OBS (one time)
+
+The actions that control OBS (*Multistream Target*, *Main Stream*, *Start All*, *Stop All* and *Confluence Status*) talk to OBS through **obs-websocket**, which ships with OBS but has to be turned on:
+
+1. Open OBS → **Tools → WebSocket Server Settings**.
+2. Tick **Enable WebSocket server**. Leave the port at `4455`.
+3. Recommended: keep **Enable Authentication** ticked and click **Generate Password**, then **Copy Password**. With a password, nobody else on your network can control your OBS. Click **OK**.
+4. In Stream Deck, drag the **Multistream Target** action onto a button.
+5. In its panel (Property Inspector), at the bottom, enter: host `127.0.0.1` (or leave empty), port `4455` (or empty) and the **password** you copied.
+6. Click **Probar conexión** (Test connection). It should say `Connected to OBS <version>` in green. If it fails, the message gives the likely cause:
+   - *"Could not connect…"*: OBS is closed, the WebSocket server is not enabled, or the port differs.
+   - *"the password is incorrect"*: copy it again from OBS.
+
+The connection settings are global: set them once and they apply to every action. The plugin reconnects by itself if you restart OBS. The other actions do not need this: *Push Stream Info*, *Send Chat Message*, *Create Clip* and *Restart Confluence* only talk to the Confluence server.
 
 ## Update, repair and uninstall
 

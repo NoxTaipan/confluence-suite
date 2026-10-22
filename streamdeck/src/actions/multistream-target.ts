@@ -3,11 +3,12 @@ import streamDeck, {
 	DidReceiveSettingsEvent,
 	KeyDownEvent,
 	PropertyInspectorDidAppearEvent,
+	SendToPluginEvent,
 	SingletonAction,
 	WillAppearEvent
 } from "@elgato/streamdeck";
-import type { JsonObject } from "@elgato/utils";
-import { callMultiRtmpVendor, resolveTargetId } from "../lib/obs-client";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { callMultiRtmpVendor, resolveTargetId, testConnection } from "../lib/obs-client";
 
 type Mode = "start" | "stop" | "toggle";
 
@@ -95,6 +96,19 @@ export class MultistreamTarget extends SingletonAction<Settings> {
 			streamDeck.logger.warn(`multistream-target: no se pudo listar targets para el PI - ${err}`);
 			await streamDeck.ui.sendToPropertyInspector({ event: "targets", targets: [], error: String(err) });
 		}
+	}
+
+	/** Boton "Probar conexion" del Property Inspector. */
+	override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, Settings>): Promise<void> {
+		const payload = ev.payload as { event?: string; obsHost?: string; obsPort?: number | string; obsPassword?: string };
+		if (payload?.event !== "testConnection") return;
+		const result = await testConnection({
+			obsHost: payload.obsHost || undefined,
+			obsPort: payload.obsPort ? Number(payload.obsPort) : undefined,
+			obsPassword: payload.obsPassword || undefined
+		});
+		await streamDeck.ui.sendToPropertyInspector({ event: "connection", ...result });
+		if (result.ok) await this.onPropertyInspectorDidAppear(ev as unknown as PropertyInspectorDidAppearEvent<Settings>);
 	}
 
 	override async onKeyDown(ev: KeyDownEvent<Settings>): Promise<void> {

@@ -19,10 +19,10 @@ async function getObsSettings(): Promise<ObsSettings> {
 	return streamDeck.settings.getGlobalSettings<ObsSettings>();
 }
 
-async function connect(): Promise<OBSWebSocket> {
-	const settings = await getObsSettings();
+async function connect(override?: ObsSettings): Promise<OBSWebSocket> {
+	const settings = override ?? (await getObsSettings());
 	const host = settings.obsHost || DEFAULT_HOST;
-	const port = settings.obsPort || DEFAULT_PORT;
+	const port = Number(settings.obsPort) || DEFAULT_PORT;
 	const url = `ws://${host}:${port}`;
 
 	const client = new OBSWebSocket();
@@ -121,4 +121,48 @@ export async function callObs<T = Record<string, unknown>>(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const response = await client.call(requestType as never, requestData as any);
 	return response as T;
+}
+
+/**
+ * Boton "Probar conexion" del Property Inspector: cierra la conexion actual, conecta con
+ * los datos que el usuario tiene escritos en ese momento (aunque todavia no se hayan
+ * guardado) y devuelve un mensaje claro, con la causa probable si falla.
+ */
+export async function testConnection(override: ObsSettings): Promise<{ ok: boolean; message: string }> {
+	if (obs) {
+		const old = obs;
+		obs = null;
+		await old.disconnect().catch(() => undefined);
+	}
+	let client: OBSWebSocket;
+	try {
+		client = await connect(override);
+	} catch (err) {
+		const text = String((err as { message?: string })?.message ?? err);
+		const code = (err as { code?: number })?.code;
+		if (code === 4009 || /authentication/i.test(text)) {
+			return { ok: false, message: "OBS respondio, pero la contrasena no es correcta. Copiala de Herramientas > Ajustes del servidor WebSocket." };
+		}
+		if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|closed|failed/i.test(text) || code === undefined) {
+			return {
+				ok: false,
+				message: "No se pudo conectar. Abre OBS y activa Herramientas > Ajustes del servidor WebSocket > Activar servidor; revisa host y puerto."
+			};
+		}
+		return { ok: false, message: `No se pudo conectar: ${text}` };
+	}
+	obs = client;
+	try {
+		const version = await client.call("GetVersion");
+		let multistream = "";
+		try {
+			const { targets } = await callMultiRtmpVendor<{ targets: unknown[] }>("ListTargets");
+			multistream = ` Multistream detectado (${targets.length} destinos).`;
+		} catch {
+			multistream = " El plugin Confluence Multistream no responde (solo se necesita para las acciones de destinos).";
+		}
+		return { ok: true, message: `Conectado a OBS ${version.obsVersion}.${multistream}` };
+	} catch {
+		return { ok: true, message: "Conectado a OBS." };
+	}
 }

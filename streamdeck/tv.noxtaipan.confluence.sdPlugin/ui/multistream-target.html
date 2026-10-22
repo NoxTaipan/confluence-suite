@@ -73,6 +73,14 @@
 			<label>Password</label>
 			<input type="password" id="obsPassword" />
 		</div>
+		<div class="row">
+			<label></label>
+			<button type="button" id="testConn">Probar conexión</button>
+		</div>
+		<div class="row">
+			<label></label>
+			<div id="connStatus" style="font-size: 11px; line-height: 1.4"></div>
+		</div>
 
 		<script>
 			let websocket = null;
@@ -105,6 +113,11 @@
 						document.getElementById("obsPassword").value = g.obsPassword || "";
 					} else if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.event === "targets") {
 						populateTargets(msg.payload.targets, msg.payload.error);
+					} else if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.event === "connection") {
+						const status = document.getElementById("connStatus");
+						status.textContent = msg.payload.message;
+						status.style.color = msg.payload.ok ? "#45d9a0" : "#ff7a7a";
+						document.getElementById("testConn").disabled = false;
 					}
 				};
 			}
@@ -166,6 +179,25 @@
 				document.getElementById("obsHost").addEventListener("change", (e) => saveGlobalSetting("obsHost", e.target.value));
 				document.getElementById("obsPort").addEventListener("change", (e) => saveGlobalSetting("obsPort", e.target.value));
 				document.getElementById("obsPassword").addEventListener("change", (e) => saveGlobalSetting("obsPassword", e.target.value));
+				document.getElementById("testConn").addEventListener("click", () => {
+					const status = document.getElementById("connStatus");
+					status.style.color = "";
+					status.textContent = "Conectando...";
+					document.getElementById("testConn").disabled = true;
+					// Se guarda lo escrito y se prueba con eso mismo.
+					saveGlobalSetting("obsHost", document.getElementById("obsHost").value);
+					websocket.send(JSON.stringify({
+						event: "sendToPlugin",
+						context: uuid,
+						action: actionUUID,
+						payload: {
+							event: "testConnection",
+							obsHost: document.getElementById("obsHost").value,
+							obsPort: document.getElementById("obsPort").value,
+							obsPassword: document.getElementById("obsPassword").value
+						}
+					}));
+				});
 			});
 		</script>
 	</body>

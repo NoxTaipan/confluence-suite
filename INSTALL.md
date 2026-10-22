@@ -119,7 +119,20 @@ Si instalaste el componente de Stream Deck, **reinicia la app de Stream Deck**. 
 | Crear Clip (Twitch) | Crea un clip y abre el editor | Confluence en marcha, canal en vivo |
 | Estado de Confluence | Muestra el estado del chat y del stream en el dial (Stream Deck+) | Confluence + obs-websocket |
 
-**obs-websocket** viene incluido en OBS: en **Herramientas → Ajustes del servidor WebSocket** activa el servidor y copia o genera la contraseña. Después, en el Property Inspector de **Target de Multistream** escribe el host (`127.0.0.1`), el puerto (`4455`) y la contraseña, y el nombre exacto del destino. En **Push Stream Info** y **Enviar Mensaje al Chat** la URL de Confluence es `http://127.0.0.1:7773` por defecto. Estos campos son globales: basta configurarlos una vez.
+### Conectar Stream Deck con OBS (una sola vez)
+
+Las acciones que controlan OBS (*Target de Multistream*, *Stream Principal*, *Start All*, *Stop All* y *Estado de Confluence*) hablan con OBS por **obs-websocket**, que ya viene incluido en OBS pero hay que activarlo:
+
+1. Abre OBS → **Herramientas → Ajustes del servidor WebSocket**.
+2. Marca **Activar servidor WebSocket**. Deja el puerto en `4455`.
+3. Recomendado: deja marcada **Habilitar autenticación** y pulsa **Generar contraseña**; luego **Copiar contraseña**. Con la contraseña, nadie más en tu red puede controlar tu OBS. Pulsa **Aceptar**.
+4. En Stream Deck, arrastra la acción **Target de Multistream** a un botón.
+5. En su panel (Property Inspector), abajo, escribe: host `127.0.0.1` (o déjalo vacío), puerto `4455` (o vacío) y la **contraseña** que copiaste.
+6. Pulsa **Probar conexión**. Debe decir en verde `Conectado a OBS <versión>`. Si falla, el mensaje dice la causa probable:
+   - *"No se pudo conectar…"*: OBS está cerrado o el servidor WebSocket no está activado, o el puerto no coincide.
+   - *"la contraseña no es correcta"*: vuelve a copiarla desde OBS.
+
+Los datos de conexión son globales: se configuran una sola vez y valen para todas las acciones. El plugin reconecta solo si reinicias OBS. Las demás acciones no necesitan esto: *Push Stream Info*, *Enviar Mensaje al Chat*, *Crear Clip* y *Reiniciar Confluence* solo hablan con el servidor de Confluence.
 
 ## Actualizar, reparar y desinstalar
 
