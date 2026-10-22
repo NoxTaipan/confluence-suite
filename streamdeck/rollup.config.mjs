@@ -12,7 +12,9 @@ export default {
     format: "cjs",
     sourcemap: isWatch
   },
-  external: ["ws"],
+  // ws se empaqueta dentro del plugin: la app de Stream Deck no trae node_modules.
+  // bufferutil y utf-8-validate son opcionales de ws (los pide dentro de un try/catch).
+  external: ["bufferutil", "utf-8-validate"],
   plugins: [
     typescript({ tsconfig: "./tsconfig.json" }),
     nodeResolve({ browser: false, exportConditions: ["node"] }),
