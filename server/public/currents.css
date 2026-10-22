@@ -432,3 +432,10 @@
 .view-starvios .composer-targets {
   display: none;
 }
+
+.view-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}

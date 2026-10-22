@@ -11,7 +11,10 @@ const PLATFORM_ICONS = {
     '<g transform="translate(2.5,2.5) scale(0.4583)"><path fill="#fff" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></g></svg>',
   kick:
     '<svg viewBox="0 0 16 16" width="14" height="14"><rect width="16" height="16" rx="4" fill="#53fc18"/>' +
-    '<g transform="translate(2.5,2.5) scale(0.4583)"><path fill="#0c0e13" d="M1.333 0h8v5.333H12V2.667h2.667V0h8v8H20v2.667h-2.667v2.666H20V16h2.667v8h-8v-2.667H12v-2.666H9.333V24h-8Z"/></g></svg>'
+    '<g transform="translate(2.5,2.5) scale(0.4583)"><path fill="#0c0e13" d="M1.333 0h8v5.333H12V2.667h2.667V0h8v8H20v2.667h-2.667v2.666H20V16h2.667v8h-8v-2.667H12v-2.666H9.333V24h-8Z"/></g></svg>',
+  starvios:
+    '<svg viewBox="0 0 16 16" width="14" height="14"><rect width="16" height="16" rx="4" fill="#ff5d9e"/>' +
+    '<g transform="translate(2.5,2.5) scale(0.4583)"><path fill="#fff" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" d="M12 2.8l2.6 5.9 6.4.6-4.8 4.2 1.4 6.3L12 16.6l-5.6 3.2 1.4-6.3L3 9.3l6.4-.6z"/></g></svg>'
 };
 
 // Rellena cualquier <span class="platform-icon-holder"> cuyo ancestro mas
