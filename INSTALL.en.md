@@ -31,7 +31,7 @@ This guide covers installing with the wizard (recommended), creating each platfo
    | Component | What it installs | Where |
    |---|---|---|
    | Stream Info + Chat + Overlay | The server, portable Node and the docks | `%LOCALAPPDATA%\Confluence` (you can pick another folder) |
-   | Multistream | The native OBS plugin | `%APPDATA%\obs-studio\plugins\obs-multi-rtmp` |
+   | Multistream | The native OBS plugin | `%PROGRAMDATA%\obs-studio\plugins\obs-multi-rtmp` |
    | Stream Deck plugin | The 9 actions | `%APPDATA%\Elgato\StreamDeck\Plugins` |
 
 5. Tick or untick the extra options:
@@ -135,7 +135,7 @@ If you installed the Stream Deck component, **restart the Stream Deck app**. The
 | Server and portable Node | `%LOCALAPPDATA%\Confluence` (or the folder you chose) |
 | Your credentials and sessions | `<install folder>\data\` |
 | Server log | `<install folder>\scripts\confluence.log` |
-| OBS plugin | `%APPDATA%\obs-studio\plugins\obs-multi-rtmp` |
+| OBS plugin | `%PROGRAMDATA%\obs-studio\plugins\obs-multi-rtmp` |
 | Stream Deck plugin | `%APPDATA%\Elgato\StreamDeck\Plugins\tv.noxtaipan.confluence.sdPlugin` |
 | Where it is installed (read by the OBS plugin) | `HKCU\Software\Confluence`, and `install-dir.txt` in `%APPDATA%\Confluence` and `%PROGRAMDATA%\Confluence` |
 
@@ -165,7 +165,7 @@ cmake --preset windows-x64 -DENABLE_QT=ON -DENABLE_FRONTEND_API=ON -DENABLE_WEBS
 cmake --build build_x64 --config Release
 ```
 
-The output lands in `build_x64\rundir\Release` (`obs-multi-rtmp.dll` and the `obs-multi-rtmp` folder with languages and font). To try it without the installer, with OBS closed, copy the `.dll` to `%APPDATA%\obs-studio\plugins\obs-multi-rtmp\bin\64bit\` and the `obs-multi-rtmp` folder to `%APPDATA%\obs-studio\plugins\obs-multi-rtmp\data\`. If the server is not in `%LOCALAPPDATA%\Confluence`, set the `CONFLUENCE_DIR` environment variable to its folder.
+The output lands in `build_x64\rundir\Release` (`obs-multi-rtmp.dll` and the `obs-multi-rtmp` folder with languages and font). To try it without the installer, with OBS closed, copy the `.dll` to `%PROGRAMDATA%\obs-studio\plugins\obs-multi-rtmp\bin\64bit\` and the `obs-multi-rtmp` folder to `%PROGRAMDATA%\obs-studio\plugins\obs-multi-rtmp\data\`. If the server is not in `%LOCALAPPDATA%\Confluence`, set the `CONFLUENCE_DIR` environment variable to its folder.
 
 ### Stream Deck plugin (`streamdeck/`)
 

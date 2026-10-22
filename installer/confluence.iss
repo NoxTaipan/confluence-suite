@@ -82,7 +82,7 @@ Name: "oauth"; Description: "{cm:TaskOAuth}"; Components: stream; Flags: uncheck
 Source: "stage\app\*"; DestDir: "{app}"; Components: stream; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "stage\runtime\node.exe"; DestDir: "{app}\runtime"; Components: stream; Flags: ignoreversion
 Source: "stage\streamdeck\*"; DestDir: "{userappdata}\Elgato\StreamDeck\Plugins"; Components: deck; Flags: recursesubdirs createallsubdirs ignoreversion
-Source: "stage\plugin\*"; DestDir: "{userappdata}\obs-studio\plugins\obs-multi-rtmp"; Components: multi; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "stage\plugin\*"; DestDir: "{commonappdata}\obs-studio\plugins\obs-multi-rtmp"; Components: multi; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
 Name: "{group}\{cm:IcoOpen}"; Filename: "http://localhost:7773"; Components: stream
@@ -155,8 +155,9 @@ begin
   Result := '';
   // Si el plugin de Stream Deck estaba enlazado con `streamdeck link` (una union a una carpeta de
   // desarrollo), se quita solo el enlace: copiar a traves de el pisaria el codigo fuente.
+  // `rmdir` borra una union pero se niega a borrar una carpeta con archivos.
   if WizardIsComponentSelected('deck') then
-    Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -Command "$d = Join-Path $env:APPDATA ''Elgato\StreamDeck\Plugins	v.noxtaipan.confluence.sdPlugin''; if ((Test-Path $d) -and (Get-Item $d).LinkType) { (Get-Item $d).Delete() }"', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    Exec(ExpandConstant('{cmd}'), '/c rmdir "' + ExpandConstant('{userappdata}\Elgato\StreamDeck\Plugins\tv.noxtaipan.confluence.sdPlugin') + '"', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Stop := ExpandConstant('{app}\scripts\stop.ps1');
   if FileExists(Stop) then
     Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + Stop + '"', '', SW_HIDE, ewWaitUntilTerminated, Code);
