@@ -35,6 +35,11 @@
   </div>
   <div class="suite-tag">Confluence Suite · by NOX TAIPAN</div>
 
+  <div class="view-tabs" id="view-tabs" hidden>
+    <button type="button" class="view-tab" data-view="unified" aria-pressed="true" data-i18n="tab_unified">Chat unificado</button>
+    <button type="button" class="view-tab" data-view="starvios" aria-pressed="false">★ Starvios</button>
+  </div>
+
   <div class="viewers-bar" id="viewers-bar">
     <button type="button" class="viewer-chip" data-platform="twitch" aria-pressed="true" data-i18n-aria="aria_viewers_toggle_twitch">
       <span class="platform-icon-holder"></span><span class="viewer-count">–</span>
@@ -52,6 +57,9 @@
     <div class="settings-label" data-i18n="settings_mentions">Resaltar menciones</div>
     <input type="text" id="mention-keyword" class="settings-input" placeholder="ej: noxtaipan" autocomplete="off" data-i18n-placeholder="placeholder_mention" />
 
+    <div class="settings-label" data-i18n="settings_starvios">Canal de Starvios</div>
+    <input type="text" id="starvios-channel" class="settings-input" placeholder="ej: tu_usuario" autocomplete="off" data-i18n-placeholder="placeholder_starvios" />
+
     <div class="settings-label" data-i18n="settings_clear_chat">Limpiar chat</div>
     <button class="settings-item" data-clear="all" data-i18n="clear_all_neutral">Todo</button>
     <button class="settings-item" data-clear="twitch" data-i18n="btn_only_twitch">Solo Twitch</button>
@@ -60,6 +68,7 @@
   </div>
 
   <div class="chat-feed" id="chat-feed"></div>
+  <iframe id="starvios-frame" class="starvios-frame" title="Starvios" allow="clipboard-write"></iframe>
 
   <div class="composer">
     <div class="composer-emoji-wrap">

@@ -78,6 +78,14 @@ Confluence usa **tus propias** credenciales: no hay una app compartida. Crea una
 
 **Chat:** el dock **Confluence Chat** mezcla los tres chats en cuanto hay cuentas conectadas. Los chips de arriba filtran por plataforma, el engranaje configura el resaltado de menciones o limpia el chat, y el campo de abajo envía tu mensaje a una o a todas las plataformas.
 
+**Starvios (opcional):** Starvios no tiene API pública, así que no se mezcla en el chat unificado, pero se integra como pestaña dentro del mismo dock:
+
+1. En el dock **Confluence Chat**, pulsa el engranaje ⚙ y escribe tu usuario en **Canal de Starvios** (por ejemplo `tu_usuario`).
+2. Aparecen dos pestañas arriba: **Chat unificado** y **★ Starvios**. La segunda muestra el chat de tu canal (`starvios.com/popout/chat/<usuario>`), donde puedes leer y escribir.
+3. La primera vez, pulsa **Log in to chat** dentro de la pestaña e inicia sesión en Starvios. Esa pantalla la rellenas tú. Si el inicio de sesión no funciona dentro del dock, añade ese mismo enlace como dock aparte en **Docks → Custom Browser Docks**.
+
+Para **emitir** a Starvios usa **Multistream**: en tu panel de Starvios, **Go Live → OBS connection**, copia el servidor (`rtmps://live.cloudflare.com:443/live/`) y la clave de emisión (secreta), y añádelos como destino personalizado. Starvios recomienda CBR y un keyframe cada 2 segundos.
+
 ## Overlay Chat en tu escena
 
 A diferencia de los docks, el Overlay se ve en tu stream, así que va **dentro de una escena**:

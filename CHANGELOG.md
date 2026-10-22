@@ -8,6 +8,7 @@ Primer lanzamiento de **Confluence Suite** como proyecto único: el servidor (an
 - **Aviso de actualización / Update notice:** los docks muestran un banner con botón «Descargar» cuando hay una release nueva en GitHub (cada 6 h, sin enviar datos). / The docks show a banner with a Download button when a newer GitHub release exists (every 6 h, no data sent).
 - **Multistream:** arranca Confluence solo al abrir OBS, ya no depende de una ruta fija (busca la carpeta en variable de entorno, registro y archivos `install-dir.txt`), y Restart/Repair ya no se quedan bloqueados si falla algo; Repair restaura `node_modules` sin internet. / Starts Confluence by itself when OBS opens, no longer depends on a hardcoded path (looks in an environment variable, the registry and `install-dir.txt` files), and Restart/Repair no longer lock up when something fails; Repair restores `node_modules` offline.
 - **Stream Deck:** «Reiniciar Confluence» encuentra la instalación sin configurar `CONFLUENCE_DIR`. / "Restart Confluence" finds the installation without setting `CONFLUENCE_DIR`.
+- **Starvios:** pestaña «★ Starvios» en el dock de Chat (se configura el canal en ⚙) para leer y escribir en el chat de Starvios, que no tiene API pública; la emisión va por Multistream (RTMP). / «★ Starvios» tab in the Chat dock (set the channel under ⚙) to read and write in Starvios chat, which has no public API; streaming goes through Multistream (RTMP).
 
 ## Historial previo del servidor / Earlier server history
 

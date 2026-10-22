@@ -199,6 +199,50 @@ mentionInput.addEventListener('input', () => {
   }
 });
 
+// --- Starvios: chat embebido (Starvios no tiene API publica; su pagina popout permite leer y escribir) ---
+const STARVIOS_KEY = 'confluence-starvios-channel';
+const starviosInput = document.getElementById('starvios-channel');
+const starviosFrame = document.getElementById('starvios-frame');
+const viewTabs = document.getElementById('view-tabs');
+
+function setView(view) {
+  document.body.classList.toggle('view-starvios', view === 'starvios');
+  viewTabs.querySelectorAll('.view-tab').forEach((tab) => {
+    tab.setAttribute('aria-pressed', String(tab.dataset.view === view));
+  });
+}
+
+function applyStarvios() {
+  const channel = starviosInput.value.trim().replace(/^@/, '');
+  const valid = /^[A-Za-z0-9_.-]{2,40}$/.test(channel);
+  viewTabs.hidden = !valid;
+  if (valid) {
+    const src = `https://starvios.com/popout/chat/${encodeURIComponent(channel)}`;
+    if (starviosFrame.getAttribute('src') !== src) starviosFrame.setAttribute('src', src);
+  } else {
+    starviosFrame.removeAttribute('src');
+    setView('unified');
+  }
+}
+
+try {
+  starviosInput.value = localStorage.getItem(STARVIOS_KEY) || '';
+} catch {
+  // localStorage no disponible - sin pestaña de Starvios, no bloqueante
+}
+starviosInput.addEventListener('input', () => {
+  try {
+    localStorage.setItem(STARVIOS_KEY, starviosInput.value.trim());
+  } catch {
+    // no bloqueante
+  }
+  applyStarvios();
+});
+viewTabs.querySelectorAll('.view-tab').forEach((tab) => {
+  tab.addEventListener('click', () => setView(tab.dataset.view));
+});
+applyStarvios();
+
 const composerInput = document.getElementById('composer-input');
 const composerSend = document.getElementById('composer-send');
 const composerTargetAll = document.getElementById('composer-target-all');

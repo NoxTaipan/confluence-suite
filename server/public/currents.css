@@ -383,3 +383,52 @@
 
 .composer-target-all:hover { color: var(--accent); border-color: var(--accent); }
 .composer-target-all[data-active="true"] { color: var(--accent); border-color: var(--accent); }
+
+/* Pestañas Unificado / Starvios (solo si hay un canal de Starvios configurado) */
+.view-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.view-tabs[hidden] {
+  display: none;
+}
+
+.view-tab {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted, #9096ac);
+  font: 600 11px var(--font-body, sans-serif);
+  cursor: pointer;
+}
+
+.view-tab[aria-pressed="true"] {
+  color: #fff;
+  background: rgba(255, 93, 158, 0.18);
+  border-color: #ff5d9e;
+}
+
+.starvios-frame {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: #0c0e13;
+}
+
+.view-starvios .starvios-frame {
+  display: block;
+}
+
+.view-starvios .viewers-bar,
+.view-starvios .chat-feed,
+.view-starvios .composer,
+.view-starvios .composer-targets {
+  display: none;
+}

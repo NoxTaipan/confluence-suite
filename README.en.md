@@ -8,6 +8,7 @@
 |---|---|
 | **Stream Info** | Publishes title, tags and category to all three platforms with one click. Creates Twitch clips. |
 | **Chat** | A unified Twitch, YouTube and Kick chat, with emotes, a per-platform viewer counter and a box to reply on any of them. |
+| **Starvios** | Your Starvios channel chat (read and write) as a tab in the Chat dock, and streaming to Starvios over RTMP with Multistream. Starvios has no public API, so there is no title/category publishing or mixing into the unified chat. |
 | **Overlay Chat** | The same chat in read-only mode, to show inside your scene. |
 | **Multistream** | Native OBS plugin that sends your video to several RTMP destinations at once (Twitch, YouTube, Kick or any server), with start/stop buttons per destination. |
 | **Stream Deck** | Elgato Stream Deck plugin with 9 actions to control everything above from physical buttons. |
