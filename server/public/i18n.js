@@ -8,6 +8,12 @@ const I18N_DICT = {
     aria_toggle_twitch: 'Conectar o desconectar Twitch',
     aria_toggle_youtube: 'Conectar o desconectar YouTube',
     aria_toggle_kick: 'Conectar o desconectar Kick',
+    aria_toggle_starvios: 'Conectar o desconectar el chat de Starvios (solo lectura)',
+    starvios_link_label: 'Enlace del overlay de chat de Starvios',
+    starvios_connect: 'Conectar',
+    starvios_note: 'En Starvios: Studio, OBS Alerts, copia el enlace del chat. Starvios no tiene API: solo se lee su chat; titulo y categoria se cambian en su web.',
+    btn_only_starvios: 'Solo Starvios',
+    target_starvios_readonly: 'Starvios es solo lectura: escribe desde la pestaña de Starvios',
     state_connect: 'conectar',
     state_disconnect: 'desconectar',
     legend_shared_info: 'Info compartida',
@@ -48,6 +54,12 @@ const I18N_DICT = {
     aria_toggle_twitch: 'Connect or disconnect Twitch',
     aria_toggle_youtube: 'Connect or disconnect YouTube',
     aria_toggle_kick: 'Connect or disconnect Kick',
+    aria_toggle_starvios: 'Connect or disconnect Starvios chat (read-only)',
+    starvios_link_label: 'Starvios chat overlay link',
+    starvios_connect: 'Connect',
+    starvios_note: 'In Starvios: Studio, OBS Alerts, copy the chat link. Starvios has no API: only its chat is read; title and category are changed on its site.',
+    btn_only_starvios: 'Only Starvios',
+    target_starvios_readonly: 'Starvios is read-only: write from the Starvios tab',
     state_connect: 'connect',
     state_disconnect: 'disconnect',
     legend_shared_info: 'Shared info',
@@ -108,6 +120,9 @@ function applyI18n() {
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
     el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+    el.title = t(el.dataset.i18nTitle);
   });
   document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
     el.setAttribute('aria-label', t(el.dataset.i18nAria));

@@ -797,6 +797,7 @@ public:
         if (name.contains("twitch")) iconFile = "icons/twitch.png";
         else if (name.contains("youtube")) iconFile = "icons/youtube.png";
         else if (name.contains("kick")) iconFile = "icons/kick.png";
+        else if (name.contains("starvios")) iconFile = "icons/starvios.png";
 
         if (!iconFile) {
             badge_->setVisible(false);

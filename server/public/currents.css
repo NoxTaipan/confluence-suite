@@ -111,6 +111,7 @@
 .filter-chip[data-platform="twitch"][data-active="true"] { color: var(--twitch); border-color: var(--twitch); }
 .filter-chip[data-platform="youtube"][data-active="true"] { color: var(--youtube); border-color: var(--youtube); }
 .filter-chip[data-platform="kick"][data-active="true"] { color: var(--kick); border-color: var(--kick); }
+.filter-chip[data-platform="starvios"][data-active="true"] { color: var(--starvios); border-color: var(--starvios); }
 .filter-chip[data-active="false"] { opacity: 0.4; }
 
 .filter-chip .status-dot {
@@ -349,6 +350,8 @@
 .composer-target[data-platform="twitch"][data-active="true"] { color: var(--twitch); border-color: var(--twitch); }
 .composer-target[data-platform="youtube"][data-active="true"] { color: var(--youtube); border-color: var(--youtube); }
 .composer-target[data-platform="kick"][data-active="true"] { color: var(--kick); border-color: var(--kick); }
+/* Starvios es solo lectura: nunca queda activo para enviar */
+.composer-target[data-readonly="true"] { cursor: not-allowed; opacity: 0.35; }
 .composer-target[data-active="false"] { opacity: 0.4; }
 
 .composer-target .status-dot {

@@ -26,6 +26,10 @@
         <span class="status-dot"></span>
         <span class="platform-icon-holder"></span>
       </div>
+      <div class="filter-chip" data-platform="starvios" data-active="true" data-status="offline" role="button" tabindex="0" aria-label="Starvios">
+        <span class="status-dot"></span>
+        <span class="platform-icon-holder"></span>
+      </div>
     </div>
     <button class="settings-btn" id="settings-btn" type="button" data-i18n-aria="aria_settings" aria-haspopup="true" aria-expanded="false">⚙</button>
     <div class="lang-toggle">
@@ -65,6 +69,7 @@
     <button class="settings-item" data-clear="twitch" data-i18n="btn_only_twitch">Solo Twitch</button>
     <button class="settings-item" data-clear="youtube" data-i18n="btn_only_youtube">Solo YouTube</button>
     <button class="settings-item" data-clear="kick" data-i18n="btn_only_kick">Solo Kick</button>
+    <button class="settings-item" data-clear="starvios" data-i18n="btn_only_starvios">Solo Starvios</button>
   </div>
 
   <div class="chat-feed" id="chat-feed"></div>
@@ -87,6 +92,9 @@
       <span class="status-dot"></span><span class="platform-icon-holder"></span>
     </button>
     <button class="composer-target" data-platform="kick" data-active="true" data-status="offline" type="button" aria-label="Kick">
+      <span class="status-dot"></span><span class="platform-icon-holder"></span>
+    </button>
+    <button class="composer-target" data-platform="starvios" data-active="false" data-status="offline" data-readonly="true" type="button" aria-label="Starvios" data-i18n-title="target_starvios_readonly">
       <span class="status-dot"></span><span class="platform-icon-holder"></span>
     </button>
   </div>

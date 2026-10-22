@@ -2,18 +2,20 @@ const EventEmitter = require('events');
 const twitch = require('../twitch');
 const kick = require('../kick');
 const youtube = require('../youtube');
+const starvios = require('../starvios');
 const twitchChat = require('./twitch-chat');
 const kickChat = require('./kick-chat');
 const youtubeChat = require('./youtube-chat');
+const starviosChat = require('./starvios-chat');
 
 const bus = new EventEmitter();
 bus.setMaxListeners(0);
 
-const CLIENTS = { twitch: twitchChat, youtube: youtubeChat, kick: kickChat };
-const ACCOUNTS = { twitch, youtube, kick };
+const CLIENTS = { twitch: twitchChat, youtube: youtubeChat, kick: kickChat, starvios: starviosChat };
+const ACCOUNTS = { twitch, youtube, kick, starvios };
 
-const status = { twitch: 'offline', youtube: 'offline', kick: 'offline' };
-const stoppers = { twitch: null, youtube: null, kick: null };
+const status = { twitch: 'offline', youtube: 'offline', kick: 'offline', starvios: 'offline' };
+const stoppers = { twitch: null, youtube: null, kick: null, starvios: null };
 
 let refCount = 0;
 
@@ -40,7 +42,7 @@ function stopPlatform(platform) {
   setStatus(platform, 'offline');
 }
 
-// Las 3 conexiones (Twitch IRC, Kick Pusher, YouTube polling) solo se abren
+// Las 4 conexiones (Twitch IRC, Kick Pusher, YouTube y Starvios por polling) solo se abren
 // mientras haya al menos un dock de chat abierto - nada corriendo de fondo
 // si nadie esta mirando el chat.
 function startUpstreams() {

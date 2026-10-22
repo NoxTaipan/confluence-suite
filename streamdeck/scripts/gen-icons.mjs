@@ -72,6 +72,12 @@ const PLATFORM_LOGOS = {
   kick: {
     path: "M1.333 0h8v5.333H12V2.667h2.667V0h8v8H20v2.667h-2.667v2.666H20V16h2.667v8h-8v-2.667H12v-2.666H9.333V24h-8Z",
     viewBox: "0 0 24 24"
+  },
+  // Starvios no esta en Simple Icons: estrella redondeada propia, mismo estilo
+  // que las demas placas (la estrella rosa es la imagen de marca de Starvios).
+  starvios: {
+    path: "M12 2.8l2.6 5.9 6.4.6-4.8 4.2 1.4 6.3L12 16.6l-5.6 3.2 1.4-6.3L3 9.3l6.4-.6z",
+    viewBox: "0 0 24 24"
   }
 };
 
@@ -106,7 +112,8 @@ await render(keyIcon(144, ACCENT), 144, `${root}/imgs/actions/multistream-target
 const PLATFORM_STYLE = {
   twitch: { plate: TWITCH, logo: "#ffffff" },
   youtube: { plate: YOUTUBE, logo: "#ffffff" },
-  kick: { plate: "#53fc18", logo: BG }
+  kick: { plate: "#53fc18", logo: BG },
+  starvios: { plate: "#ff5d9e", logo: "#ffffff" }
 };
 for (const [platform, style] of Object.entries(PLATFORM_STYLE)) {
   await render(platformBadgeIcon(72, MUTED, "#e6e8ee", platform), 72, `${root}/imgs/actions/multistream-target/key-${platform}-off.png`);

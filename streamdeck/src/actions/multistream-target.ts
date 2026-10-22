@@ -19,7 +19,7 @@ type Settings = JsonObject & {
 
 type KeyAction = WillAppearEvent<Settings>["action"];
 
-const KNOWN_PLATFORMS = ["twitch", "youtube", "kick"] as const;
+const KNOWN_PLATFORMS = ["twitch", "youtube", "kick", "starvios"] as const;
 
 /**
  * Resuelve el logo de plataforma a mostrar segun el nombre configurado (mismo

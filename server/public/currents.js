@@ -2,7 +2,7 @@ const MAX_MESSAGES = 200;
 const NEAR_BOTTOM_PX = 60;
 
 const feed = document.getElementById('chat-feed');
-const activePlatforms = { twitch: true, youtube: true, kick: true };
+const activePlatforms = { twitch: true, youtube: true, kick: true, starvios: true };
 
 // PLATFORM_ICONS y el llenado de .platform-icon-holder vienen de
 // platform-icons.js (compartido con Confluence Stream Info).
@@ -255,7 +255,8 @@ const composerActive = { twitch: true, youtube: true, kick: true };
 
 function renderComposerTargets() {
   composerPlatformTargets.forEach((btn) => {
-    btn.dataset.active = String(composerActive[btn.dataset.platform]);
+    // Starvios no esta en composerActive: es solo lectura (no tiene API para enviar).
+    btn.dataset.active = String(!!composerActive[btn.dataset.platform]);
   });
   composerTargetAll.dataset.active = String(Object.values(composerActive).every(Boolean));
 }
@@ -268,6 +269,7 @@ composerTargetAll.addEventListener('click', () => {
 
 composerPlatformTargets.forEach((btn) => {
   btn.addEventListener('click', () => {
+    if (btn.dataset.readonly === 'true') return;
     const platform = btn.dataset.platform;
     composerActive[platform] = !composerActive[platform];
     renderComposerTargets();

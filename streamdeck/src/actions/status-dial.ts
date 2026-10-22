@@ -7,7 +7,7 @@ type Settings = JsonObject;
 
 const POLL_INTERVAL_MS = 5000;
 
-type ChatStatus = { twitch: boolean; youtube: boolean; kick: boolean };
+type ChatStatus = { twitch: boolean; youtube: boolean; kick: boolean; starvios?: boolean };
 
 /**
  * Dial de Stream Deck+ (sin botones, solo pantalla) con un resumen del estado
@@ -40,9 +40,9 @@ export class StatusDial extends SingletonAction<Settings> {
 
 		let chatText = "Chat: ?";
 		try {
-			const chat = await request<ChatStatus>("/api/push/status");
-			const connected = [chat.twitch, chat.youtube, chat.kick].filter(Boolean).length;
-			chatText = `Chat ${connected}/3`;
+			const chat = await request<ChatStatus>("/api/status");
+			const connected = [chat.twitch, chat.youtube, chat.kick, chat.starvios].filter(Boolean).length;
+			chatText = `Chat ${connected}/4`;
 		} catch (err) {
 			streamDeck.logger.debug(`status-dial: no se pudo leer estado de chat - ${err}`);
 		}

@@ -2,6 +2,7 @@ const express = require('express');
 const twitch = require('../lib/twitch');
 const youtube = require('../lib/youtube');
 const kick = require('../lib/kick');
+const starvios = require('../lib/starvios');
 
 const router = express.Router();
 
@@ -9,7 +10,8 @@ router.get('/status', (req, res) => {
   res.json({
     twitch: twitch.isConnected(),
     youtube: youtube.isConnected(),
-    kick: kick.isConnected()
+    kick: kick.isConnected(),
+    starvios: starvios.isConnected()
   });
 });
 

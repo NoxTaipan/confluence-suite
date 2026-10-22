@@ -3,10 +3,11 @@ const chatManager = require('../lib/chat/manager');
 const twitch = require('../lib/twitch');
 const youtube = require('../lib/youtube');
 const kick = require('../lib/kick');
+const starvios = require('../lib/starvios');
 
 const router = express.Router();
 
-const SENDERS = { twitch, youtube, kick };
+const SENDERS = { twitch, youtube, kick, starvios };
 
 router.get('/stream', (req, res) => {
   res.set({

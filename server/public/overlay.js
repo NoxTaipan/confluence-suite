@@ -4,7 +4,7 @@
 // un overlay dentro de la escena no tiene UI propia para eso:
 //   ?limit=8            cantidad maxima de mensajes visibles a la vez
 //   ?fade=20            segundos hasta que un mensaje se desvanece solo (0 = nunca)
-//   ?platforms=twitch,kick   cuales plataformas mostrar (default: las 3)
+//   ?platforms=twitch,kick   cuales plataformas mostrar (default: todas)
 //   ?position=bottom-left    bottom-left | bottom-right | top-left | top-right
 
 const params = new URLSearchParams(location.search);
@@ -13,7 +13,7 @@ const MAX_MESSAGES = Math.max(1, parseInt(params.get('limit'), 10) || 8);
 const fadeParam = params.get('fade');
 const fadeSeconds = fadeParam === null ? 20 : parseInt(fadeParam, 10);
 const FADE_MS = Math.max(0, Number.isFinite(fadeSeconds) ? fadeSeconds : 20) * 1000;
-const ALLOWED_PLATFORMS = (params.get('platforms') || 'twitch,youtube,kick')
+const ALLOWED_PLATFORMS = (params.get('platforms') || 'twitch,youtube,kick,starvios')
   .split(',')
   .map((p) => p.trim().toLowerCase())
   .filter(Boolean);

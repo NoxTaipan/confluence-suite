@@ -6,6 +6,7 @@ const kick = require('../lib/kick');
 const tokenStore = require('../lib/token-store');
 const chatManager = require('../lib/chat/manager');
 const credentials = require('../lib/credentials');
+const starvios = require('../lib/starvios');
 
 const router = express.Router();
 const platforms = { twitch, youtube, kick };
@@ -29,6 +30,34 @@ function consumeState(state, platform) {
   if (state) pendingStates.delete(state);
   return !!entry && entry.platform === platform && entry.expires >= Date.now();
 }
+
+// Starvios no usa OAuth: se conecta pegando el enlace privado de su overlay de chat
+// (solo lectura). Solo desde esta misma pagina en localhost, como /api/setup.
+const PORT = process.env.PORT || 7773;
+const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`]);
+function localOnly(req, res, next) {
+  const origin = req.headers.origin;
+  if (!ALLOWED_HOSTS.has(req.headers.host) || (origin && !ALLOWED_HOSTS.has(origin.replace(/^https?:\/\//, '')))) {
+    return res.status(403).json({ ok: false, error: 'Origen no permitido' });
+  }
+  next();
+}
+
+router.post('/starvios/connect', localOnly, async (req, res) => {
+  try {
+    await starvios.connect(req.body && req.body.link);
+    chatManager.connectPlatform('starvios');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/starvios/disconnect', localOnly, (req, res) => {
+  starvios.disconnect();
+  chatManager.disconnectPlatform('starvios');
+  res.json({ ok: true });
+});
 
 router.get('/:platform', (req, res) => {
   const name = req.params.platform;
