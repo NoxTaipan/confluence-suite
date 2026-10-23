@@ -60,7 +60,7 @@ La guía completa, con la creación de las apps de cada plataforma, está en **[
 - **Aviso de actualización:** los docks muestran un banner con un botón **Descargar** cuando hay una versión nueva en GitHub (se comprueba cada 6 horas; solo consulta la versión publicada, sin enviar datos tuyos).
 - **Actualizar:** ejecuta el instalador nuevo encima. Tus claves y sesiones se conservan.
 - **Reparar:** vuelve a ejecutar el instalador y elige *Reparar*, o usa **Reparar Confluence** del menú Inicio (restaura las dependencias sin internet), o el botón **Repair** del dock de Multistream.
-- **Desinstalar:** *Aplicaciones* de Windows, o **Desinstalar Confluence** del menú Inicio. Te pregunta si conservas tus claves.
+- **Desinstalar:** *Aplicaciones* de Windows, o **Desinstalar Confluence** del menú Inicio. Te pregunta si quieres borrar también tus claves; por defecto se conservan, y antes de cualquier borrado se guarda una copia.
 
 ## Privacidad y seguridad
 

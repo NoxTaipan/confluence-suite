@@ -47,7 +47,8 @@ es.IcoRestart=Reiniciar Confluence
 es.IcoRepair=Reparar Confluence
 es.IcoUninstall=Desinstalar Confluence
 es.Maint=Confluence ya esta instalado.%n%nSi = Reparar / actualizar / cambiar componentes%nNo = Desinstalar%nCancelar = Salir
-es.KeepData=Quieres conservar tus claves y sesiones de Twitch/YouTube/Kick?
+es.DeleteData=Quieres BORRAR tambien tus claves y sesiones de Twitch, YouTube, Kick y Starvios?%n%nNo (recomendado): se conservan, y al reinstalar no tendras que volver a conectarlas.%nSi: se borran. Antes se guarda una copia en Documentos\Confluence-respaldo por si fue un error.
+es.RestoreData=Se encontro un respaldo de tus claves y sesiones (%1).%n%nQuieres restaurarlo? Asi no tendras que volver a conectar tus plataformas.
 en.CompStream=Stream Info + Chat + Overlay (OBS panel)
 en.CompMulti=Multistream (OBS plugin to stream to several destinations)
 en.CompDeck=Stream Deck plugin (Elgato)
@@ -63,7 +64,8 @@ en.IcoRestart=Restart Confluence
 en.IcoRepair=Repair Confluence
 en.IcoUninstall=Uninstall Confluence
 en.Maint=Confluence is already installed.%n%nYes = Repair / update / change components%nNo = Uninstall%nCancel = Exit
-en.KeepData=Keep your saved Twitch/YouTube/Kick credentials and sessions?
+en.DeleteData=Do you also want to DELETE your saved Twitch, YouTube, Kick and Starvios credentials and sessions?%n%nNo (recommended): they are kept, and you will not have to reconnect after reinstalling.%nYes: they are deleted. A copy is saved first in Documents\Confluence-respaldo in case it was a mistake.
+en.RestoreData=A backup of your credentials and sessions was found (%1).%n%nDo you want to restore it? That way you will not have to reconnect your platforms.
 
 [Types]
 Name: "full"; Description: "{cm:TypeFull}"
@@ -165,7 +167,39 @@ end;
 
 // Algunos equipos arrancan OBS en otro contexto y no ven HKCU ni AppData: el plugin tambien
 // mira %PROGRAMDATA%, asi que la ruta se guarda en los tres sitios.
+// Respaldo de claves y sesiones: una copia fuera de la carpeta de instalacion, por si se borran por error.
+function BackupRoot: String;
+begin
+  Result := ExpandConstant('{userdocs}\Confluence-respaldo');
+end;
+
+// Devuelve la carpeta de respaldo mas reciente que tenga credentials.json ('' si no hay).
+function LatestBackup: String;
+var FindRec: TFindRec; Best: String;
+begin
+  Best := '';
+  if FindFirst(BackupRoot + '\*', FindRec) then
+  try
+    repeat
+      if ((FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+        if FileExists(BackupRoot + '\' + FindRec.Name + '\credentials.json') and (CompareStr(FindRec.Name, Best) > 0) then
+          Best := FindRec.Name;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+  Result := Best;
+end;
+
+procedure CopyData(Src, Dst: String);
+var Code: Integer;
+begin
+  ForceDirectories(Dst);
+  Exec(ExpandConstant('{cmd}'), '/c xcopy "' + Src + '\*" "' + Dst + '\" /E /I /Y /Q', '', SW_HIDE, ewWaitUntilTerminated, Code);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
+var Dir, Latest: String;
 begin
   if (CurStep = ssPostInstall) and WizardIsComponentSelected('stream') then
   begin
@@ -173,10 +207,26 @@ begin
     SaveStringToFile(ExpandConstant('{userappdata}\Confluence\install-dir.txt'), ExpandConstant('{app}'), False);
     ForceDirectories(ExpandConstant('{commonappdata}\Confluence'));
     SaveStringToFile(ExpandConstant('{commonappdata}\Confluence\install-dir.txt'), ExpandConstant('{app}'), False);
+
+    // Si la instalacion no trae claves pero hay un respaldo, se ofrece restaurarlo.
+    // En modo silencioso solo se restaura con /RESTOREBACKUP=1.
+    Dir := ExpandConstant('{app}\data');
+    Latest := LatestBackup;
+    Log('Confluence: respaldo mas reciente=[' + Latest + '] raiz=[' + BackupRoot + '] silent=' + IntToStr(Ord(WizardSilent)) + ' param=[' + ExpandConstant('{param:RESTOREBACKUP|0}') + ']');
+    if (Latest <> '') and (not FileExists(Dir + '\credentials.json')) then
+    begin
+      if WizardSilent then
+      begin
+        if ExpandConstant('{param:RESTOREBACKUP|0}') = '1' then CopyData(BackupRoot + '\' + Latest, Dir);
+      end
+      else if MsgBox(FmtMessage(CustomMessage('RestoreData'), [Latest]), mbConfirmation, MB_YESNO) = IDYES then
+        CopyData(BackupRoot + '\' + Latest, Dir);
+    end;
   end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var Data: String; DoDelete: Boolean;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
@@ -184,7 +234,22 @@ begin
     RemoveDir(ExpandConstant('{userappdata}\Confluence'));
     DeleteFile(ExpandConstant('{commonappdata}\Confluence\install-dir.txt'));
     RemoveDir(ExpandConstant('{commonappdata}\Confluence'));
-    if (not UninstallSilent) and (MsgBox(CustomMessage('KeepData'), mbConfirmation, MB_YESNO) = IDNO) then
+    // Por defecto (y en modo silencioso) las claves se CONSERVAN. Solo se borran si se pide
+    // con /DELETEDATA=1 o si se responde Si a una pregunta cuyo boton por defecto es No,
+    // y siempre despues de guardar una copia.
+    Data := ExpandConstant('{app}\data');
+    DoDelete := False;
+    if DirExists(Data) then
+    begin
+      if ExpandConstant('{param:DELETEDATA|0}') = '1' then
+        DoDelete := True
+      else if not UninstallSilent then
+        DoDelete := MsgBox(CustomMessage('DeleteData'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+    end;
+    if DoDelete then
+    begin
+      CopyData(Data, BackupRoot + '\' + GetDateTimeString('yyyymmdd_hhnn', #0, #0));
       DelTree(ExpandConstant('{app}'), True, True, True);
+    end;
   end;
 end;

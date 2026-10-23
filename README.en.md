@@ -60,7 +60,7 @@ The full guide, including how to create each platform's app, is in **[INSTALL.en
 - **Update notice:** the docks show a banner with a **Download** button when a newer version exists on GitHub (checked every 6 hours; it only asks for the published version and sends none of your data).
 - **Update:** run the new installer over the old one. Your credentials and sessions are kept.
 - **Repair:** run the installer again and choose *Repair*, or use **Repair Confluence** in the Start menu (restores dependencies offline), or the **Repair** button in the Multistream dock.
-- **Uninstall:** Windows *Apps*, or **Uninstall Confluence** in the Start menu. It asks whether to keep your credentials.
+- **Uninstall:** Windows *Apps*, or **Uninstall Confluence** in the Start menu. It asks whether to also delete your credentials; the default is to keep them, and a backup is saved before any deletion.
 
 ## Privacy and security
 

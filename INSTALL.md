@@ -157,7 +157,7 @@ Los datos de conexión son globales: se configuran una sola vez y valen para tod
 - **Actualizar:** cuando hay una versión nueva, los docks muestran un banner con **Descargar**. Descarga el nuevo `ConfluenceSetup-<versión>.exe`, cierra OBS y ejecútalo encima; conserva tus claves y sesiones.
 - **Reparar:** ejecuta el instalador de nuevo y elige **Sí (reparar / actualizar / cambiar componentes)**, o usa **Reparar Confluence** del menú Inicio. Esto vuelve a poner las dependencias del servidor desde una copia incluida, sin internet, y lo reinicia. El botón **Repair** del dock de Multistream hace lo mismo.
 - **Reiniciar:** botón **Restart** del dock de Multistream, o **Reiniciar Confluence** en el menú Inicio o en Stream Deck.
-- **Desinstalar:** *Configuración → Aplicaciones → Confluence Suite*, o **Desinstalar Confluence** en el menú Inicio. Pregunta si conservas tus claves (`data`). Los docks que el asistente añadió a OBS se quitan desde **Docks → Custom Browser Docks**.
+- **Desinstalar:** *Configuración → Aplicaciones → Confluence Suite*, o **Desinstalar Confluence** en el menú Inicio. Pregunta si quieres **borrar también** tus claves y sesiones (`data`): el botón por defecto es **No**, que las conserva. Si eliges **Sí**, antes guarda una copia en `Documentos\Confluence-respaldo`. Al reinstalar, si no hay claves y existe un respaldo, el instalador ofrece restaurarlo. Para scripts: `/DELETEDATA=1` al desinstalar y `/RESTOREBACKUP=1` al instalar en modo silencioso. Los docks que el asistente añadió a OBS se quitan desde **Docks → Custom Browser Docks**.
 
 ## Dónde se guarda todo
 

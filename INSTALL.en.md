@@ -157,7 +157,7 @@ The connection settings are global: set them once and they apply to every action
 - **Update:** when a newer version exists, the docks show a banner with **Download**. Download the new `ConfluenceSetup-<version>.exe`, close OBS and run it over the old one; it keeps your credentials and sessions.
 - **Repair:** run the installer again and choose **Yes (repair / update / change components)**, or use **Repair Confluence** in the Start menu. It restores the server's dependencies from a bundled copy, offline, and restarts it. The **Repair** button in the Multistream dock does the same.
 - **Restart:** the **Restart** button in the Multistream dock, or **Restart Confluence** in the Start menu or on Stream Deck.
-- **Uninstall:** *Settings → Apps → Confluence Suite*, or **Uninstall Confluence** in the Start menu. It asks whether to keep your credentials (`data`). The docks the wizard added to OBS are removed from **Docks → Custom Browser Docks**.
+- **Uninstall:** *Settings → Apps → Confluence Suite*, or **Uninstall Confluence** in the Start menu. It asks whether to **also delete** your credentials and sessions (`data`): the default button is **No**, which keeps them. If you choose **Yes**, a copy is saved first in `Documents\Confluence-respaldo`. When reinstalling, if there are no credentials and a backup exists, the installer offers to restore it. For scripts: `/DELETEDATA=1` when uninstalling and `/RESTOREBACKUP=1` when installing silently. The docks the wizard added to OBS are removed from **Docks → Custom Browser Docks**.
 
 ## Where everything is stored
 
