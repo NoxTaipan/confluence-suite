@@ -212,8 +212,16 @@ function setView(view) {
   });
 }
 
+// Acepta el usuario o cualquier enlace de tu canal (popout/chat, live o @usuario) y se queda solo con el usuario.
+function parseStarviosChannel(raw) {
+  const value = String(raw || '').trim();
+  const fromLink = /starvios\.com\/(?:popout\/chat\/|live\/|@)?@?([A-Za-z0-9_.-]{2,40})/i.exec(value);
+  if (fromLink) return fromLink[1];
+  return value.replace(/^@/, '');
+}
+
 function applyStarvios() {
-  const channel = starviosInput.value.trim().replace(/^@/, '');
+  const channel = parseStarviosChannel(starviosInput.value);
   const valid = /^[A-Za-z0-9_.-]{2,40}$/.test(channel);
   viewTabs.hidden = !valid;
   if (valid) {
@@ -231,8 +239,10 @@ try {
   // localStorage no disponible - sin pestaña de Starvios, no bloqueante
 }
 starviosInput.addEventListener('input', () => {
+  const channel = parseStarviosChannel(starviosInput.value);
+  if (channel !== starviosInput.value.trim()) starviosInput.value = channel; // el enlace pegado se reduce al usuario
   try {
-    localStorage.setItem(STARVIOS_KEY, starviosInput.value.trim());
+    localStorage.setItem(STARVIOS_KEY, channel);
   } catch {
     // no bloqueante
   }

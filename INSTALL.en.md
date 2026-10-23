@@ -92,7 +92,7 @@ Confluence uses **your own** credentials: there is no shared app. Create one app
 1. In Starvios: **Studio → OBS Alerts**, copy the **chat** link (`starvios.com/overlay/chat/…`). It is private: do not share it.
 2. In the **Confluence Chat** dock, click the gear ⚙, paste the link into **Starvios chat** and click **Connect**. Confluence checks that Starvios accepts it and saves it only on your PC. To remove it, **Disconnect**.
 
-**Write in Starvios chat (optional):** in that same ⚙ menu, type your username in **Starvios channel** (for example `your_username`). The **Starvios** tab appears with `starvios.com/popout/chat/<username>`; the first time click **Log in to chat** and sign in (you fill in that screen yourself).
+**Write in Starvios chat (optional):** in that same ⚙ menu, paste your channel link (for example `starvios.com/popout/chat/your_username` or `starvios.com/live/your_username`) or type your username in **Starvios channel**; the field keeps only the username. The **Starvios** tab appears with `starvios.com/popout/chat/<username>`; the first time click **Log in to chat** and sign in (you fill in that screen yourself).
 
 **Stream to Starvios with Multistream:** in your Starvios panel, **Go Live → OBS connection**, copy the server (`rtmps://live.cloudflare.com:443/live/`) and the stream key (secret), and add them as a custom destination; name it something that contains `Starvios`. Starvios recommends CBR and a keyframe every 2 seconds.
 
