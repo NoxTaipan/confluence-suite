@@ -170,22 +170,6 @@ h1 {
 .platform-pill[data-platform="twitch"][data-connected="true"] { color: var(--twitch); }
 .platform-pill[data-platform="youtube"][data-connected="true"] { color: var(--youtube); }
 .platform-pill[data-platform="kick"][data-connected="true"] { color: var(--kick); }
-.platform-pill[data-platform="starvios"][data-connected="true"] { color: var(--starvios); }
-
-.starvios-connect {
-  margin: -8px 0 16px;
-  padding: 10px;
-  border: 1px solid var(--border, #2a2f3a);
-  border-radius: 8px;
-  background: var(--panel-2, #151821);
-}
-.starvios-connect[hidden] { display: none; }
-.starvios-connect label { display: block; font-size: 11px; margin-bottom: 6px; }
-.starvios-connect-row { display: flex; gap: 6px; }
-.starvios-connect-row input { flex: 1; min-width: 0; }
-.starvios-note { margin: 8px 0 0; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
-.starvios-msg { margin: 6px 0 0; font-size: 11px; color: #ff7a7a; }
-.starvios-msg:empty { display: none; }
 
 .platform-pill .name {
   display: block;
@@ -515,5 +499,3 @@ button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; transform: n
   margin-top: 16px;
   opacity: 0.6;
 }
-
-.starvios-connect-row button { flex: none; width: auto; padding-left: 14px; padding-right: 14px; }

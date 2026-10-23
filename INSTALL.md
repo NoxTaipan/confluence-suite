@@ -78,22 +78,21 @@ Confluence usa **tus propias** credenciales: no hay una app compartida. Crea una
 
 **Chat:** el dock **Confluence Chat** mezcla los tres chats en cuanto hay cuentas conectadas. Los chips de arriba filtran por plataforma, el engranaje configura el resaltado de menciones o limpia el chat, y el campo de abajo envía tu mensaje a una o a todas las plataformas.
 
-**Starvios (opcional):** Starvios no tiene API pública ni OAuth, así que su integración es parcial y se explica aquí con claridad.
+**Starvios (opcional, solo chat):** Starvios no tiene API pública ni OAuth, así que la integración es parcial. **Stream Info no incluye Starvios** (no se puede publicar título, tags ni categoría); se añadirá cuando Starvios ofrezca una API.
 
 *Qué sí hace:*
 - **Chat unificado (solo lectura):** los mensajes de Starvios aparecen mezclados con los de Twitch, YouTube y Kick, con su icono, el color de cada usuario, los emotes y las donaciones marcadas con ⭐. Tiene su chip de filtro y su punto de estado.
 - **Overlay Chat:** también sale en el overlay de la escena (el parámetro `platforms` lo incluye por defecto).
-- **Emisión:** se emite a Starvios con Multistream (RTMP). El destino lleva su icono si su nombre contiene `Starvios`.
-- **Escribir:** desde la pestaña **★ Starvios** del dock de Chat, que muestra su chat completo (ver abajo).
+- **Emisión:** se emite a Starvios con **Multistream** (RTMP): servidor y clave de emisión. El destino lleva su icono si su nombre contiene `Starvios`.
+- **Escribir:** desde la pestaña **Starvios** del dock de Chat, que muestra su chat completo.
 
-*Qué no puede hacer* (Starvios no ofrece forma de hacerlo): publicar título, tags o categoría, enviar mensajes desde el cuadro de Confluence, ni mostrar el contador de viewers.
+*Qué no puede hacer* (Starvios no ofrece forma de hacerlo): publicar título/tags/categoría, enviar mensajes desde el cuadro de Confluence, ni mostrar el contador de viewers.
 
 **Conectar el chat (una sola vez):**
 1. En Starvios: **Studio → OBS Alerts**, copia el enlace del **chat** (`starvios.com/overlay/chat/…`). Es privado: no lo compartas.
-2. En el dock **Confluence Stream Info**, toca la pastilla **Starvios**, pega el enlace y pulsa **Conectar**. Confluence comprueba que Starvios lo acepta. Se guarda solo en tu PC.
-3. Para desconectar, toca la pastilla otra vez.
+2. En el dock **Confluence Chat**, pulsa el engranaje ⚙, pega el enlace en **Chat de Starvios** y pulsa **Conectar**. Confluence comprueba que Starvios lo acepta y lo guarda solo en tu PC. Para quitarlo, **Desconectar**.
 
-**Escribir en el chat de Starvios (opcional):** en el dock **Confluence Chat**, pulsa el engranaje ⚙ y escribe tu usuario en **Canal de Starvios** (por ejemplo `tu_usuario`). Aparece la pestaña **Starvios** con `starvios.com/popout/chat/<usuario>`; la primera vez pulsa **Log in to chat** e inicia sesión (esa pantalla la rellenas tú).
+**Escribir en el chat de Starvios (opcional):** en ese mismo menú ⚙, escribe tu usuario en **Canal de Starvios** (por ejemplo `tu_usuario`). Aparece la pestaña **Starvios** con `starvios.com/popout/chat/<usuario>`; la primera vez pulsa **Log in to chat** e inicia sesión (esa pantalla la rellenas tú).
 
 **Emitir a Starvios con Multistream:** en tu panel de Starvios, **Go Live → OBS connection**, copia el servidor (`rtmps://live.cloudflare.com:443/live/`) y la clave de emisión (secreta), y añádelos como destino personalizado; ponle de nombre algo que contenga `Starvios`. Starvios recomienda CBR y un keyframe cada 2 segundos.
 

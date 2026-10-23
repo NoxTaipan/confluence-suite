@@ -61,6 +61,18 @@
     <div class="settings-label" data-i18n="settings_mentions">Resaltar menciones</div>
     <input type="text" id="mention-keyword" class="settings-input" placeholder="ej: noxtaipan" autocomplete="off" data-i18n-placeholder="placeholder_mention" />
 
+    <div class="settings-label" data-i18n="starvios_link_label">Chat de Starvios (enlace del overlay)</div>
+    <div class="starvios-connect-row" id="starvios-connect-row">
+      <input type="password" id="starvios-link" class="settings-input" placeholder="https://starvios.com/overlay/chat/..." autocomplete="off" />
+      <button type="button" class="settings-item" id="starvios-link-save" data-i18n="starvios_connect">Conectar</button>
+    </div>
+    <div class="starvios-connected" id="starvios-connected" hidden>
+      <span class="starvios-ok" data-i18n="starvios_connected">Conectado</span>
+      <button type="button" class="settings-item" id="starvios-link-clear" data-i18n="starvios_disconnect">Desconectar</button>
+    </div>
+    <p class="starvios-note" data-i18n="starvios_note">En Starvios: Studio, OBS Alerts, copia el enlace del chat. Solo lectura: Starvios no tiene API.</p>
+    <p class="starvios-msg" id="starvios-link-msg" role="status"></p>
+
     <div class="settings-label" data-i18n="settings_starvios">Canal de Starvios</div>
     <input type="text" id="starvios-channel" class="settings-input" placeholder="ej: tu_usuario" autocomplete="off" data-i18n-placeholder="placeholder_starvios" />
 

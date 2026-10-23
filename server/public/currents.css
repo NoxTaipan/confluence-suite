@@ -442,3 +442,17 @@
   justify-content: center;
   gap: 6px;
 }
+
+/* Conexion del chat de Starvios dentro del menu de ajustes */
+.starvios-connect-row { display: flex; gap: 6px; align-items: center; }
+.starvios-connect-row .settings-input { flex: 1; min-width: 0; }
+.starvios-connect-row .settings-item { flex: none; width: auto; }
+.starvios-connected { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.starvios-ok { font-size: 11px; color: var(--starvios); font-weight: 600; }
+.starvios-connected .settings-item { flex: none; width: auto; }
+.starvios-note { margin: 6px 0 0; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
+.starvios-msg { margin: 6px 0 0; font-size: 11px; color: #ff7a7a; }
+.starvios-msg:empty { display: none; }
+
+.starvios-connect-row[hidden],
+.starvios-connected[hidden] { display: none; }

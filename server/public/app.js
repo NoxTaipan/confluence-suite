@@ -24,28 +24,6 @@ async function loadStatus() {
 
 window.addEventListener('confluence-lang-changed', renderStatus);
 
-document.getElementById('starvios-link-save').addEventListener('click', async () => {
-  const input = document.getElementById('starvios-link');
-  const msg = document.getElementById('starvios-link-msg');
-  msg.textContent = '...';
-  msg.dataset.ok = 'false';
-  try {
-    const res = await fetch('/auth/starvios/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ link: input.value })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Error');
-    input.value = '';
-    msg.textContent = '';
-    document.getElementById('starvios-connect').hidden = true;
-    loadStatus();
-  } catch (err) {
-    msg.textContent = err.message;
-  }
-});
-
 // Mientras el popup de OAuth siga abierto no sabemos cuanto va a tardar el
 // usuario en autorizar - se sondea el estado cada segundo hasta que lo
 // cierre (con un limite de 2 minutos por si el navegador bloqueo el popup
@@ -66,18 +44,6 @@ function pollWhileOpen(popup, platform) {
 document.querySelectorAll('.platform-pill').forEach((pill) => {
   const togglePill = async () => {
     const platform = pill.dataset.platform;
-    if (platform === 'starvios') {
-      // Sin OAuth: se pega el enlace del overlay de chat (solo lectura).
-      if (pill.dataset.connected === 'true') {
-        await fetch('/auth/starvios/disconnect', { method: 'POST' });
-        loadStatus();
-      } else {
-        const form = document.getElementById('starvios-connect');
-        form.hidden = !form.hidden;
-        if (!form.hidden) document.getElementById('starvios-link').focus();
-      }
-      return;
-    }
     if (pill.dataset.connected === 'true') {
       await fetch(`/auth/${platform}/disconnect`, { method: 'POST' });
       loadStatus();

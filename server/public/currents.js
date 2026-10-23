@@ -243,6 +243,46 @@ viewTabs.querySelectorAll('.view-tab').forEach((tab) => {
 });
 applyStarvios();
 
+// Conexion del chat de Starvios (solo lectura): se pega el enlace privado del overlay de chat.
+const starviosConnectRow = document.getElementById('starvios-connect-row');
+const starviosConnected = document.getElementById('starvios-connected');
+const starviosLink = document.getElementById('starvios-link');
+const starviosMsg = document.getElementById('starvios-link-msg');
+
+async function refreshStarviosState() {
+  try {
+    const status = await (await fetch('/api/status')).json();
+    starviosConnectRow.hidden = !!status.starvios;
+    starviosConnected.hidden = !status.starvios;
+  } catch {
+    // servidor no disponible - se deja el estado como esta, no bloqueante
+  }
+}
+
+document.getElementById('starvios-link-save').addEventListener('click', async () => {
+  starviosMsg.textContent = '...';
+  try {
+    const res = await fetch('/auth/starvios/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ link: starviosLink.value })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error');
+    starviosLink.value = '';
+    starviosMsg.textContent = '';
+  } catch (err) {
+    starviosMsg.textContent = err.message;
+  }
+  refreshStarviosState();
+});
+
+document.getElementById('starvios-link-clear').addEventListener('click', async () => {
+  await fetch('/auth/starvios/disconnect', { method: 'POST' });
+  refreshStarviosState();
+});
+refreshStarviosState();
+
 const composerInput = document.getElementById('composer-input');
 const composerSend = document.getElementById('composer-send');
 const composerTargetAll = document.getElementById('composer-target-all');
