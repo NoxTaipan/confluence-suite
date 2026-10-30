@@ -1,6 +1,7 @@
 require('dotenv').config();
 require('./lib/credentials').load();
 const express = require('express');
+const { localGuard, securityHeaders } = require('./lib/guard');
 const path = require('path');
 const fs = require('fs');
 
@@ -14,6 +15,8 @@ const updateRoutes = require('./routes/update');
 const app = express();
 const PORT = process.env.PORT || 7773;
 
+app.use(securityHeaders);
+app.use(localGuard);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 

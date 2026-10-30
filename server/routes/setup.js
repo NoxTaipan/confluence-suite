@@ -5,16 +5,7 @@ const credentials = require('../lib/credentials');
 
 const router = express.Router();
 
-// Solo desde esta misma pagina en localhost: evita que otra web (CSRF / DNS rebinding) cambie las credenciales.
-const PORT = process.env.PORT || 7773;
-const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`]);
-router.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (!ALLOWED_HOSTS.has(req.headers.host) || (origin && !ALLOWED_HOSTS.has(origin.replace(/^https?:\/\//, '')))) {
-    return res.status(403).json({ error: 'Origen no permitido' });
-  }
-  next();
-});
+// El filtro de Host/Origin (lib/guard.js) ya protege todo el servidor, incluido este endpoint.
 
 router.get('/status', (req, res) => {
   const out = {};

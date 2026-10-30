@@ -31,19 +31,9 @@ function consumeState(state, platform) {
   return !!entry && entry.platform === platform && entry.expires >= Date.now();
 }
 
-// Starvios no usa OAuth: se conecta pegando el enlace privado de su overlay de chat
-// (solo lectura). Solo desde esta misma pagina en localhost, como /api/setup.
-const PORT = process.env.PORT || 7773;
-const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`]);
-function localOnly(req, res, next) {
-  const origin = req.headers.origin;
-  if (!ALLOWED_HOSTS.has(req.headers.host) || (origin && !ALLOWED_HOSTS.has(origin.replace(/^https?:\/\//, '')))) {
-    return res.status(403).json({ ok: false, error: 'Origen no permitido' });
-  }
-  next();
-}
+// Starvios no usa OAuth: se conecta pegando el enlace privado de su overlay de chat (solo lectura).
 
-router.post('/starvios/connect', localOnly, async (req, res) => {
+router.post('/starvios/connect', async (req, res) => {
   try {
     await starvios.connect(req.body && req.body.link);
     chatManager.connectPlatform('starvios');
@@ -53,7 +43,7 @@ router.post('/starvios/connect', localOnly, async (req, res) => {
   }
 });
 
-router.post('/starvios/disconnect', localOnly, (req, res) => {
+router.post('/starvios/disconnect', (req, res) => {
   starvios.disconnect();
   chatManager.disconnectPlatform('starvios');
   res.json({ ok: true });

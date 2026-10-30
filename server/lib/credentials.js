@@ -1,12 +1,12 @@
-const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson } = require('./json-file');
 
 const FILE = path.join(__dirname, '..', 'data', 'credentials.json');
 const PLATFORMS = ['twitch', 'youtube', 'kick'];
 const PORT = process.env.PORT || 7773;
 
 function read() {
-  try { return JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch { return {}; }
+  return readJson(FILE, {});
 }
 
 // Vuelca lo guardado en la pantalla de configuracion a process.env (el .env sigue mandando si ya trae valores).
@@ -29,8 +29,7 @@ function isConfigured(platform) {
 function save(platform, clientId, clientSecret) {
   const all = read();
   all[platform] = { clientId: String(clientId).trim(), clientSecret: String(clientSecret).trim() };
-  fs.mkdirSync(path.dirname(FILE), { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(all, null, 2));
+  writeJson(FILE, all);
 }
 
 module.exports = { PLATFORMS, load, isConfigured, save };

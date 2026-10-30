@@ -1,20 +1,15 @@
-const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson } = require('./json-file');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const TOKENS_FILE = path.join(DATA_DIR, 'tokens.json');
 
 function readAll() {
-  try {
-    return JSON.parse(fs.readFileSync(TOKENS_FILE, 'utf8'));
-  } catch {
-    return {};
-  }
+  return readJson(TOKENS_FILE, {});
 }
 
 function writeAll(all) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(TOKENS_FILE, JSON.stringify(all, null, 2));
+  writeJson(TOKENS_FILE, all);
 }
 
 function get(platform) {
