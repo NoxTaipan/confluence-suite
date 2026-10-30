@@ -1,6 +1,6 @@
 {
   "name": "confluence-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Panel personal para actualizar titulo/categoria/tags en Twitch, YouTube y Kick a la vez, embebido como OBS Custom Browser Dock.",
   "private": true,
   "type": "commonjs",

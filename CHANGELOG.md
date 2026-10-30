@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar / Unreleased
+## v1.0.1 — 2026-10-30
 
 - **Seguridad / Security:** el servidor local ahora solo atiende a sus propias páginas: bloquea un `Host` que no sea `localhost`/`127.0.0.1` (ataque «DNS rebinding») y las peticiones que cambian algo (POST…) que vengan de otra web (`Origin` / `Sec-Fetch-Site`). Antes, desde cualquier pestaña se podía desconectar una plataforma, crear un clip o mandar un mensaje al chat sin avisar; el filtro cubría solo `/api/setup` y Starvios. Los docks de OBS, el overlay y el Stream Deck no se ven afectados. / The local server now only serves its own pages: it blocks any `Host` other than `localhost`/`127.0.0.1` (DNS rebinding) and state-changing requests from other websites. Before, any browser tab could disconnect a platform, create a clip or send a chat message unnoticed; the filter only covered `/api/setup` and Starvios. OBS docks, the overlay and Stream Deck are unaffected. Se añadieron cabeceras `X-Content-Type-Options` y `Referrer-Policy`. / Added `X-Content-Type-Options` and `Referrer-Policy` headers.
 - **Claves a salvo / Keys safe:** `credentials.json` y `tokens.json` se guardan con archivo temporal + renombrado y una copia `.bak`; si el principal se corrompe (corte de luz a mitad de guardar) se lee la copia. / `credentials.json` and `tokens.json` are saved via temp file + rename plus a `.bak` copy; if the main file is corrupted (power cut mid-save) the copy is read.
